@@ -7,6 +7,8 @@
 const CMP_MAX = 6;
 const CMP_COLORS = ["var(--s0)", "var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
 const CMP_STORE = "aa-compare-v1";
+// Multi-criteria advancements whose finish time is shown under Run stats
+const CMP_MULTIS = ["adventure/adventuring_time", "husbandry/complete_catalogue"];
 let UPLOADED = [];          // runs read from files: [{run, label}]
 let cmpStatus = "";         // message under the upload button
 
@@ -107,17 +109,19 @@ function renderCompare() {
         <input type="file" id="cmpFile" accept=".log,.txt,.jsonl,.json" multiple hidden>
         ${UPLOADED.length ? `<button type="button" class="linkbtn" id="cmpForget">${esc(T.cmpForget)}</button>` : ""}
       </div>
-      <p class="note" style="margin:0">${T.cmpHelp}</p>
       ${cmpStatus ? `<p class="cmp-status" role="status" style="margin:0">${esc(cmpStatus)}</p>` : ""}
     </section>
     ${list.length ? `
+    <section class="card tablewrap" style="padding:0">${cmpSplitsTable(list)}</section>
     <section class="card" style="display:flex;flex-direction:column;gap:14px">
       <div class="head-row" style="align-items:center"><h2>${esc(T.progressTitle)}</h2><span class="zoominfo" id="cmpZoomInfo"></span></div>
       <div class="keys"><span>${esc(T.cmpDragZoom)}</span></div>
-      <div class="chartbox" id="cmpChart"></div>
-      <div class="legend">${list.map(c => `<span><i style="background:${c.color}"></i>${esc(c.label)}</span>`).join("")}<span><i class="cmp-dot"></i>${esc(T.cmpSplitDot)}</span></div>
+      ${list.map((c, i) => `<div class="cmp-graph" style="--c:${c.color}">
+        <div class="cmp-graphhead"><span class="swatch" style="background:${c.color}"></span><b>${esc(c.label)}</b><span class="cat ${c.d.category.toLowerCase()}">${esc(c.d.category)}</span><span class="mono muted">${fmt(c.run.finalIgt, 0)}</span></div>
+        <div class="chartbox" id="cmpTop${i}"></div><div class="chartbox" id="cmpRes${i}"></div>
+      </div>`).join("")}
+      <div class="legend"><span><i style="background:var(--ow)"></i>${esc(T.overworld)}</span><span><i style="background:var(--ne)"></i>${esc(T.nether)}</span><span><i style="background:var(--en)"></i>${esc(T.theEnd)}</span></div>
     </section>
-    <section class="card tablewrap" style="padding:0">${cmpSplitsTable(list)}</section>
     <section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}`;
 
   // controls
@@ -135,58 +139,59 @@ function renderCompare() {
   if (list.length) drawCompare(list);
 }
 
-// ---------- Graph: advancements over IGT, one line per run, dots where the splits change ----------
+// ---------- Graphs: each run's own progress graph (same as its Stats page), one under another ----------
+// They share the time axis, zoom and hover line, so the same moment lines up in every run.
 function drawCompare(list) {
   const endT = Math.max(...list.map(c => c.run.finalIgt));
-  const lines = list.map(c => c.run.events.filter(e => e[4]).map((e, k) => [e[0], k + 1, e]));
-  const series = list.map((c, i) => ({points: lines[i], color: c.color, w: i === 0 ? 3 : 2.25, until: c.run.finalIgt, endLabel: () => c.label}));
-  const advAt = (i, t) => { const l = lastBefore(lines[i], t); return l ? l[1] : 0; };
-  const markers = list.flatMap((c, i) => c.d.splits.map((p, si) => si && p.start != null ? {t: p.start, v: advAt(i, p.start), color: c.color, end: true, text: c.label + " · " + p.name} : null).filter(Boolean));
-  const splitAt = (c, t) => c.d.splits.find(p => p.segs.some(g => t >= g[0] && t <= g[1]));
-  const hover = t => `<div class="thead"><span class="mono">${fmt(t, 0)}</span></div>` + list.map((c, i) => {
-    const done = t > c.run.finalIgt, p = splitAt(c, t);
-    return `<div class="cmp-trow"><span class="swatch" style="background:${c.color}"></span><span class="tname clamp">${esc(c.label)}</span><b class="mono">${advAt(i, t)}</b><span class="tlab">${done ? esc(T.cmpFinished) : p ? esc(p.name) : ""}</span></div>`;
-  }).join("");
-
+  const parts = list.map(c => progressParts(c.run, c.d));
   if (state.cmpZoomKey !== state.cmp.join()) { state.cmpZoom = null; state.cmpZoomKey = state.cmp.join(); }
   const draw = () => {
     const [za, zb] = state.cmpZoom || [0, endT];
     $("#cmpZoomInfo").innerHTML = state.cmpZoom ? `${esc(T.showing)} ${fmt(za, 0)}–${fmt(zb, 0)} <button type="button" class="linkbtn" id="cmpReset">${esc(T.reset)}</button>` : "";
     if (state.cmpZoom) $("#cmpReset").addEventListener("click", () => { state.cmpZoom = null; draw(); });
-    mountChart($("#cmpChart"), {series, markers, yKey: "adv", H: 440, W: 1280, xmin: za, xmaxFix: zb, fitY: !!state.cmpZoom, clean: true,
-      onBrush: (a, b) => { if (b - a < 30000) return; state.cmpZoom = (a <= 0 && b >= endT) ? null : [a, b]; draw(); }}, hover);
+    const shared = {xmin: za, xmaxFix: zb, fitY: !!state.cmpZoom, W: 1280,
+      onBrush: (a, b) => { if (b - a < 30000) return; state.cmpZoom = (a <= 0 && b >= endT) ? null : [a, b]; draw(); }};
+    const ctls = [];
+    parts.forEach((pp, i) => { ctls[i] = mountProgress(pp, $("#cmpTop" + i), $("#cmpRes" + i), shared, 360, 150, t => ctls.forEach((c, k) => { if (k !== i && c) c.showLine(t); })); });
   };
   draw();
 }
 
 // ---------- Tables ----------
-// "+1:23" / "−0:45" against the first run; slower is red, faster is green
-const cmpDelta = (v, ref) => {
+// Ahead / behind the first run, like LiveSplit: "+1:23" behind (red), "−0:45" ahead (green).
+// Pale when this split lost time against the previous one while still ahead (or gained while still behind).
+const cmpSigned = d => (d > 0 ? "+" : "−") + fmtShort(Math.abs(d));
+const cmpDelta = (v, ref, prev) => {
   if (v == null || ref == null) return "";
   const d = v - ref; if (Math.abs(d) < 1000) return `<span class="delta">±0</span>`;
-  return `<span class="delta ${d > 0 ? "pos" : "neg"}">${d > 0 ? "+" : "−"}${fmtShort(Math.abs(d))}</span>`;
+  const seg = prev != null ? d - prev : null, pale = seg != null && (d < 0 ? seg > 0 : seg < 0);
+  return `<span class="delta ${d > 0 ? "pos" : "neg"}${pale ? " pale" : ""}"${seg != null ? ` title="${esc(T.cmpSegment)} ${Math.abs(seg) < 1000 ? "±0" : cmpSigned(seg)}"` : ""}>${cmpSigned(d)}</span>`;
 };
 const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>${list.map(c => `<th scope="col"><span class="swatch" style="background:${c.color};margin-right:8px"></span>${esc(c.label)} <span class="cat ${c.d.category.toLowerCase()}" style="margin-left:6px">${esc(c.d.category)}</span></th>`).join("")}</tr></thead>`;
 
+// Splits: the time on the clock when each split was done (like LiveSplit), and how far ahead or behind the first run
 function cmpSplitsTable(list) {
-  const rows = SPLITS.map((s, i) => {
-    const ref = list[0].d.splits[i].dur;
-    return `<tr><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${ic(list[0].d.splits[i].icon)}${esc(s.name)}</span></th>${list.map((c, k) => {
-      const p = c.d.splits[i];
-      return `<td><span class="mono">${p.dur != null ? fmtShort(p.dur) : "—"}</span>${k ? cmpDelta(p.dur, ref) : ""}${p.end != null ? `<div class="note mono">${esc(T.cmpDoneAt)} ${fmt(p.end, 0)}</div>` : ""}</td>`;
-    }).join("")}</tr>`;
-  }).join("");
-  const fin = `<tr class="cmp-total"><th scope="row">${esc(T.timeLabel)}</th>${list.map((c, k) => `<td><span class="mono">${fmt(c.run.finalIgt, 0)}</span>${k ? cmpDelta(c.run.finalIgt, list[0].run.finalIgt) : ""}</td>`).join("")}</tr>`;
-  return `<table class="cmp-table">${cmpHead(list, T.splitsTitle)}<tbody>${rows}${fin}</tbody></table>`;
+  const rowsDef = [
+    ...SPLITS.map((s, i) => ({name: s.name, icon: list[0].d.splits[i].icon, at: c => c.d.splits[i].end})),
+    {name: T.timeLabel, total: true, at: c => c.run.finalIgt},
+  ];
+  const prev = list.map(() => null);   // last difference for each run, to tell if a split gained or lost time
+  const rows = rowsDef.map(r => `<tr${r.total ? ` class="cmp-total"` : ""}><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${r.icon ? ic(r.icon) : ""}${esc(r.name)}</span></th>${list.map((c, k) => {
+    const v = r.at(c), ref = r.at(list[0]);
+    const cell = `<span class="mono">${v != null ? fmt(v, 0) : "—"}</span>${k ? cmpDelta(v, ref, r.total ? null : prev[k]) : ""}`;
+    if (v != null && ref != null && !r.total) prev[k] = v - ref;
+    return `<td>${cell}</td>`;
+  }).join("")}</tr>`).join("");
+  return `<table class="cmp-table">${cmpHead(list, T.splitsTitle)}<tbody>${rows}</tbody></table>`;
 }
 
 function cmpStatsTable(list) {
   const timeRow = (icon, name, f) => ({icon, name, cell: (c, k) => { const v = f(c); return `<span class="mono">${v != null ? fmt(v, 0) : "—"}</span>${k ? cmpDelta(v, f(list[0])) : ""}`; }});
   const rows = [
     {icon: null, name: T.cmpAdvancements, cell: c => `<span class="mono">${c.d.comp.length}/${Object.keys(ADV).length}</span>`},
-    ...STAT_CARDS.map(k => ({icon: STAT_DEFS[k].icon, name: STAT_DEFS[k].name(), cell: c => `<span class="mono">${STAT_DEFS[k].one(c.run)}</span>`})),
+    ...STAT_CARDS.filter(k => k !== "deaths" && k !== "elytra").map(k => ({icon: STAT_DEFS[k].icon, name: STAT_DEFS[k].name(), cell: c => `<span class="mono">${STAT_DEFS[k].one(c.run)}</span>`})),
     {icon: "s_skulls", name: T.skullsSplit, cell: (c, k) => { const v = c.d.skullSplit && c.d.skullSplit.dur; const r = list[0].d.skullSplit && list[0].d.skullSplit.dur; return `<span class="mono">${v != null ? fmtShort(v) : "—"}</span>${k ? cmpDelta(v, r) : ""}`; }},
-    ...Object.keys(MULTI).map(id => timeRow(MICON[id], advName(id), c => { const m = c.d.multis.find(q => q.id === id); return m ? m.done : null; })),
+    ...CMP_MULTIS.map(id => timeRow(MICON[id], advName(id), c => { const m = c.d.multis.find(q => q.id === id); return m ? m.done : null; })),
     timeRow("thunder", T.cmpThunder, c => c.d.thunder),
     {icon: "trident", name: T.hoverRiptide, cell: c => `<span class="mono">${c.d.riptide.length ? T.cmpRiptide(c.d.riptide.reduce((a, r) => a + r.uses, 0), c.d.riptide.length) : "—"}</span>`},
   ];

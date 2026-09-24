@@ -22,7 +22,9 @@ const progressCardShell = () => `
 
 let chartKeys = null, fsResize = null;   // keyboard shortcuts and resize handler for the current run
 
-function drawProgress(run, d) {
+// Everything the graph shows for one run: lines, icons, deaths, thunder, riptide, split colours and hover text.
+// The Compare page uses this too, so a run looks the same there.
+function progressParts(run, d) {
   // ---------- Lines ----------
   const adv = run.events.filter(e => e[4]).map((e, i) => [e[0], i + 1, e]);
   const top = d.multis.map(m => ({key: m.id, points: m.xs.map((e, k) => [e[0], k + 1, e]), color: MCOL[m.id], w: 1.75, until: m.done ?? run.finalIgt, soft: true, endLabel: () => MULTI[m.id]}));
@@ -67,6 +69,21 @@ function drawProgress(run, d) {
     }).join("");
   const riptideRow = t => { const r = riptide.find(x => t >= x.start && t <= x.end); return r ? `<div class="triptide">${ic("trident", 14)}${esc(T.hoverRiptide)}</div>` : ""; };
   const hoverText = t => { const ph = splitAt(t); return `<div class="thead"><span class="mono">${fmt(t, 0)}</span>${ph ? `<span>${esc(ph.name)}</span>` : ""}</div>` + riptideRow(t) + rows(top, t) + (res.length ? `<div class="tsep"></div>` + rows(res, t) : ""); };
+  return {top, res, bands, deaths, thunder, riptide, markers, hoverText, strip: run.dims.length ? {segs: run.dims, end: run.finalIgt} : null};
+}
+
+// Draws both parts (advancements on top, gold/TNT and dimensions below) into two boxes.
+// shared = zoom and size options for both; onHover(t) is told where the mouse is.
+function mountProgress(pp, box, rbox, shared, Htop, Hres, onHover) {
+  let cTop = null, cRes = null;
+  cTop = mountChart(box, {...shared, series: pp.top, yKey: "adv", H: Htop, bands: pp.bands, deaths: pp.deaths, thunder: pp.thunder, riptide: pp.riptide, markers: pp.markers, noXAxis: true, clean: true, onHover: t => { if (cRes) cRes.showLine(t); if (onHover) onHover(t); }}, pp.hoverText);
+  if (pp.res.length) cRes = mountChart(rbox, {...shared, series: pp.res, yKey: "res", H: Hres, bands: pp.bands, bandLabels: false, padRFix: 120, strip: pp.strip, clean: true, onHover: t => { if (cTop) cTop.showLine(t); if (onHover) onHover(t); }}, pp.hoverText);
+  else rbox.innerHTML = "";
+  return {showLine(t) { if (cTop) cTop.showLine(t); if (cRes) cRes.showLine(t); }};
+}
+
+function drawProgress(run, d) {
+  const pp = progressParts(run, d);
 
   // ---------- Zoom ----------
   const endT = run.finalIgt;
@@ -89,10 +106,7 @@ function drawProgress(run, d) {
     if (state.zoom) $("#zReset").addEventListener("click", () => { state.zoom = null; draw(); });
     const shared = {xmin: za, xmaxFix: zb, fitY: !!state.zoom, W, onBrush: setZoom,
       onWheel: (t, f) => { const [a, b] = current(); setZoom(t - (t - a) * f, t + (b - t) * f); }, wheelActive: () => card.classList.contains("fs")};
-    let cTop = null, cRes = null;
-    cTop = mountChart(box, {...shared, series: top, yKey: "adv", H: Htop, bands, deaths, thunder, riptide, markers, noXAxis: true, clean: true, onHover: t => cRes && cRes.showLine(t)}, hoverText);
-    if (res.length) cRes = mountChart(rbox, {...shared, series: res, yKey: "res", H: Hres, bands, bandLabels: false, padRFix: 120, strip: run.dims.length ? {segs: run.dims, end: run.finalIgt} : null, clean: true, onHover: t => cTop && cTop.showLine(t)}, hoverText);
-    else rbox.innerHTML = "";
+    mountProgress(pp, box, rbox, shared, Htop, Hres);
   }
   draw();
 

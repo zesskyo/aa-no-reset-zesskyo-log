@@ -290,9 +290,10 @@ th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:block}
 .cmp-drop{transition:border-color .15s,background .15s}
 .cmp-drop.over{border-color:var(--accent);border-style:dashed;background:var(--surface2)}
 .cmp-status{font-size:13px;color:var(--muted)}
-.cmp-dot{border-radius:50%!important;width:10px!important;height:10px!important;background:var(--muted)}
 .cmp-table th[scope="row"]{font-size:14px;color:var(--text);font-weight:500;border-bottom:1px solid var(--line)}
 .cmp-table tbody tr:last-child th{border-bottom:0}
 .cmp-table td{white-space:nowrap}
 .cmp-total th,.cmp-total td{background:var(--surface2);font-weight:600}
-.tip .cmp-trow{display:grid;grid-template-columns:12px minmax(0,120px) 30px auto;gap:6px;align-items:center;line-height:1.6}
+.delta.pale{opacity:.6}
+.cmp-graph{display:flex;flex-direction:column;gap:4px;padding-top:14px;border-top:1px solid var(--line)}
+.cmp-graphhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
