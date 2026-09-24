@@ -112,7 +112,7 @@ const RARE = [
 ];
 
 // Criterion names to shorten (as they'd otherwise appear → what to show)
-const CRIT_RENAME = {"British Shorthair": "British"};
+const CRIT_RENAME = {"British Shorthair": "British", "All Black": "Black"};
 
 // ---------- Rules of thumb (times in milliseconds: 60000 = 1 minute) ----------
 const RULES = {

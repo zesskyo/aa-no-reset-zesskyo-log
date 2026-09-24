@@ -47,7 +47,7 @@ function progressParts(run, d) {
     ...(run.st.gapple != null ? onAdvLine([run.st.gapple], "s_gapple", "var(--gold)", () => T.godAppleMarker) : []),
     // rare biomes sit on the Adventuring Time line; faded (with "Missing …" on hover) if that visit left the group unfinished
     ...d.rare.flatMap(g => g.visits.map(v => ({t: v.t, v: atAt(v.t), icon: g.key, color: "var(--s1)", faded: !v.complete,
-      text: v.complete ? null : T.missing + " " + v.missing.map(critName).join(", ")}))),
+      text: g.name, sub: v.complete ? T.rareComplete : T.missing + " " + v.missing.map(critName).join(", ")}))),
     // each finished multi-criteria line ends on its icon
     ...d.multis.filter(m => m.done != null).map(m => ({t: m.done, v: m.tot, icon: MICON[m.id], color: MCOL[m.id], end: true, text: T.multiComplete(advName(m.id)), sub: T.multiLast(critName(m.last))})),
   ];

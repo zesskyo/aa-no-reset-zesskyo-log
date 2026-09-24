@@ -89,8 +89,8 @@ const T = {
   cmpForget: "Forget uploaded runs",
   cmpKeysHelp: `<span>Drag to zoom</span><span><kbd>+</kbd><kbd>−</kbd> zoom</span><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>0</kbd> reset</span><span><kbd>F</kbd> full screen</span>`,
   cmpSegment: "This split:",
-  cmpSkullsTime: "Skulls time",
-  cmpDebrisTime: "Debris time",
+  cmpSkullsTime: "Skulls Split",
+  cmpDebrisTime: "Debris Split",
   cmpFinished: "Finished",
 
   // Graph hover text
@@ -109,6 +109,7 @@ const T = {
   multiLast: crit => `Last: ${crit}`,
   debrisHover: (debris, tnt, rack) => `<b class="mono">${debris}</b> debris · <b class="mono">${tnt}</b> TNT` + (rack != null ? ` · <b class="mono">${rack}</b> netherrack` : ""),
   skullsHover: (ws, skulls) => `<b class="mono">${ws}</b> wither skeletons · <b class="mono">${skulls}</b> skulls`,
+  rareComplete: "All biomes visited",
   skullOnChart: (k, killed) => `Skull ${k}/3 (Killed: ${killed})`,
 
   // Labels at the end of lines on the small graphs
@@ -123,6 +124,6 @@ const T = {
   statSkulls: "Skulls / wither skeletons killed",
   statSkullRate: "Wither skeletons killed per skull",
   statTntPerDebris: "TNT per debris",
-  statShulkers: "Shulker boxes opened",
-  statCreepers: "Creepers killed",
+  statShulkers: "Shulker Box Interactions",
+  statCreepers: "Creeper Kills",
 };
