@@ -2,7 +2,7 @@
 //   logs/<N>.log          Hermes play.log for run N (the file name is the run number)
 //   logs/<N>.stats.json   optional: the world's stats/<uuid>.json, for elytra distance
 //   runs/<N>.json         already-parsed runs (used when there is no log for that number)
-//   runs.json             details you type in: date, seed, video, notes, pacelock, deaths
+//   runs.json             details you type in: date, seed, video, notes, deaths
 //   icons/<slot>.png      icons shown on the site
 // Usage: node build.mjs      (no packages to install)
 import fs from "node:fs";
@@ -43,7 +43,7 @@ const out = [];
 for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   const d = details[String(n)] || {};
   const meta = {num: n};
-  for (const k of ["date", "seed", "video", "notes", "pacelock"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]);
+  for (const k of ["date", "seed", "video", "notes"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]);
   if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error(`runs.json run ${n}: date must look like 2026-09-22`);
   if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error(`runs.json run ${n}: video must start with http:// or https://`);
   const intent = {};
