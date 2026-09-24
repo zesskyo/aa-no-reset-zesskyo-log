@@ -1,44 +1,49 @@
 // Builds dist/index.html from:
-//   logs/<N>.log          Hermes play.log for run N (the file name is the run number)
-//   logs/<N>.stats.json   optional: the world's stats/<uuid>.json, for elytra distance
-//   runs/<N>.json         already-parsed runs (used when there is no log for that number)
-//   runs.json             details you type in: date, seed, video, notes, deaths
-//   icons/<slot>.png      icons shown on the site
+//   src/*.js, src/app.css  the site's code (joined together in the order listed in FILES below)
+//   logs/<N>.log           Hermes play.log for run N (the file name is the run number)
+//   logs/<N>.stats.json    optional: the world's stats/<uuid>.json, for elytra distance
+//   runs/<N>.json          already-parsed runs (used when there is no log for that number)
+//   runs.json              details: date, seed, video, notes, deaths
+//   icons/<name>.png       icons shown on the site
 // Usage: node build.mjs      (no packages to install)
 import fs from "node:fs";
 import path from "node:path";
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const rd = p => path.join(root, p);
-const appJs = fs.readFileSync(rd("src/app.js"), "utf8");
-const appCss = fs.readFileSync(rd("src/app.css"), "utf8");
+const read = p => fs.readFileSync(rd(p), "utf8");
 
-// Reuse the site's own log parser so the build and the website always agree.
-const cut = (a, b) => appJs.slice(appJs.indexOf(a), appJs.indexOf(b));
-const parserSrc = cut("/* ================= parsing", "/* ================= derived");
-const { parseLog, encodeRun } = new Function(parserSrc + "\nreturn { parseLog, encodeRun, runKey };")();
-const runKey = new Function(parserSrc + "\nreturn runKey;")();
-const headLine = appJs.slice(appJs.indexOf("const HEAD ="), appJs.indexOf("\n", appJs.indexOf("const HEAD =")));
-const HEAD = new Function(headLine + "\nreturn HEAD;")();
+// The site's code, in the order it has to run
+const FILES = [
+  "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
+  "splits.js", "stats.js", "stat-cards.js", "charts.js",
+  "overview.js", "run-page.js", "progress-graph.js", "run-switcher.js", "app.js",
+];
+const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read("src/" + f)).join("\n") + "\n})();\n";
+const appCss = read("src/app.css");
 
-const runs = new Map();   // run number -> encoded run
+// Reuse the site's own log reader so the build and the website always agree
+const { parseLog, encodeRun, runKey } = new Function(read("src/parse-log.js") + "\nreturn { parseLog, encodeRun, runKey };")();
+const T = new Function(read("src/text.js") + "\nreturn T;")();
+
+const runs = new Map();   // run number -> stored run
 const numOf = f => { const m = /^(\d+)\./.exec(f); return m ? Number(m[1]) : null; };
 
 // 1) already-parsed runs
 if (fs.existsSync(rd("runs"))) for (const f of fs.readdirSync(rd("runs"))) {
   const n = numOf(f); if (n == null || !f.endsWith(".json")) continue;
-  runs.set(n, JSON.parse(fs.readFileSync(rd("runs/" + f), "utf8")));
+  runs.set(n, JSON.parse(read("runs/" + f)));
 }
 // 2) logs (a log always wins over an older parsed copy)
 if (fs.existsSync(rd("logs"))) for (const f of fs.readdirSync(rd("logs"))) {
   const n = numOf(f); if (n == null || !/\.(log|txt|jsonl)$/i.test(f)) continue;
-  const r = parseLog(fs.readFileSync(rd("logs/" + f), "utf8"), f);
+  const r = parseLog(read("logs/" + f), f);
   r.id = runKey(r);
   runs.set(n, encodeRun(r));
   console.log(`Parsed logs/${f} as run ${n}`);
 }
 // 3) details from runs.json
-const details = fs.existsSync(rd("runs.json")) ? JSON.parse(fs.readFileSync(rd("runs.json"), "utf8")) : {};
+const details = fs.existsSync(rd("runs.json")) ? JSON.parse(read("runs.json")) : {};
 const out = [];
 for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   const d = details[String(n)] || {};
@@ -68,9 +73,17 @@ if (fs.existsSync(rd("icons"))) for (const f of fs.readdirSync(rd("icons"))) {
   icons[m[1]] = `data:${MIME[m[2].toLowerCase()]};base64,` + fs.readFileSync(rd("icons/" + f)).toString("base64");
 }
 
-// 5) assemble the page (same layout the site writes when it republishes itself)
+// 5) assemble the page
+const escHtml = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const head = `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${escHtml(T.siteTitle + " " + T.siteSubtitle)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+`;
 const json = JSON.stringify({runs: out, icons}).replace(/</g, "\\u003c");
-const html = "<!doctype html>\n<html lang=\"en\">\n<head>\n" + HEAD + "<style id=\"app-css\">" + appCss + "</style>\n</head>\n<body>\n<div id=\"app\"></div>\n<script type=\"application/json\" id=\"aa-data\">" + json + "</script>\n<script id=\"app-js\">" + appJs + "</script>\n</body>\n</html>\n";
+const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(rd("dist"), {recursive: true});
 fs.writeFileSync(rd("dist/index.html"), html);
 console.log(`Built dist/index.html: ${out.length} runs, ${Object.keys(icons).length} icons, ${(html.length / 1024).toFixed(0)} KB`);
