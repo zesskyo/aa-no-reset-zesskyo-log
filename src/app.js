@@ -51,11 +51,12 @@ $("#runsTable").addEventListener("keydown", e => {
   if (row && e.target === row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); go("run", row.dataset.open); }
 });
 
-// Keyboard shortcuts on the Stats page (see progress-graph.js), ignored while typing in a box
+// Keyboard shortcuts on the Stats and Compare pages (see progress-graph.js and compare.js), ignored while typing in a box
 document.addEventListener("keydown", e => {
-  if (state.view !== "run" || !chartKeys || e.ctrlKey || e.metaKey || e.altKey) return;
+  const keys = state.view === "run" ? chartKeys : state.view === "compare" ? cmpKeys : null;
+  if (!keys || e.ctrlKey || e.metaKey || e.altKey) return;
   const tg = e.target; if (tg && (tg.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName))) return;
-  if (chartKeys(e)) e.preventDefault();
+  if (keys(e)) e.preventDefault();
 });
 
 cmpLoad();

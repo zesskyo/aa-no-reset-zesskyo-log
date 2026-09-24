@@ -77,7 +77,7 @@ function progressParts(run, d) {
 function mountProgress(pp, box, rbox, shared, Htop, Hres, onHover) {
   let cTop = null, cRes = null;
   cTop = mountChart(box, {...shared, series: pp.top, yKey: "adv", H: Htop, bands: pp.bands, deaths: pp.deaths, thunder: pp.thunder, riptide: pp.riptide, markers: pp.markers, noXAxis: true, clean: true, onHover: t => { if (cRes) cRes.showLine(t); if (onHover) onHover(t); }}, pp.hoverText);
-  if (pp.res.length) cRes = mountChart(rbox, {...shared, series: pp.res, yKey: "res", H: Hres, bands: pp.bands, bandLabels: false, padRFix: 120, strip: pp.strip, clean: true, onHover: t => { if (cTop) cTop.showLine(t); if (onHover) onHover(t); }}, pp.hoverText);
+  if (pp.res.length) cRes = mountChart(rbox, {...shared, series: pp.res, yKey: "res", H: Hres, ystepFix: Hres < 170 ? 100 : null, bands: pp.bands, bandLabels: false, padRFix: 120, strip: pp.strip, clean: true, onHover: t => { if (cTop) cTop.showLine(t); if (onHover) onHover(t); }}, pp.hoverText);
   else rbox.innerHTML = "";
   return {showLine(t) { if (cTop) cTop.showLine(t); if (cRes) cRes.showLine(t); }};
 }

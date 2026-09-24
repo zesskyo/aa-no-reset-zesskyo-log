@@ -78,11 +78,7 @@ const T = {
   minimise: "Minimise",
 
   // Compare page
-  cmpTitle: "Compare runs",
-  cmpIntro: "Put up to 6 runs side by side.",
-  cmpNone: "No runs picked yet.",
-  cmpAdd: "Add a run…",
-  cmpFull: max => `${max} runs at most — remove one to add another`,
+  cmpAdd: "Pick a run…",
   cmpMine: "Runs on this site",
   cmpUploadedRuns: "Your uploaded runs",
   cmpUploaded: "uploaded",
@@ -90,9 +86,8 @@ const T = {
   cmpReading: "Reading…",
   cmpBadJson: "This isn't a saved run.",
   cmpSave: "Save as a file",
-  cmpRemove: "Remove",
   cmpForget: "Forget uploaded runs",
-  cmpDragZoom: "Drag to zoom",
+  cmpKeysHelp: `<span>Drag to zoom</span><span><kbd>+</kbd><kbd>−</kbd> zoom</span><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>0</kbd> reset</span><span><kbd>F</kbd> full screen</span>`,
   cmpSegment: "This split:",
   cmpSkullsTime: "Skulls time",
   cmpDebrisTime: "Debris time",

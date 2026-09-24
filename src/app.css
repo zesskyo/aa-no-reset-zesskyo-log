@@ -282,20 +282,20 @@ th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:block}
 .tip .triptide{display:flex;align-items:center;gap:6px;color:var(--s1);font-weight:600;margin-bottom:4px}
 
 /* Compare page */
-.cmp-chips{display:flex;flex-wrap:wrap;gap:10px}
-.cmp-chip{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;background:var(--bg);min-width:0;max-width:100%}
-.cmp-chip .btn.icon{width:36px;min-height:36px}
-.cmp-add{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.cmp-add select{flex:1 1 220px;min-width:0}
-.cmp-drop{transition:border-color .15s,background .15s}
-.cmp-drop.over{border-color:var(--accent);border-style:dashed;background:var(--surface2)}
+.cmp-slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.cmp-slots{grid-template-columns:minmax(0,1fr)}}
+.cmp-slot{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;background:var(--bg);min-width:0;transition:border-color .15s,background .15s}
+.cmp-slot select{flex:1 1 auto;min-width:0}
+.cmp-slot .btn{flex:none}
+.cmp-slot.over{border-color:var(--accent);border-style:dashed;background:var(--surface2)}
+.cmp-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .cmp-status{font-size:13px;color:var(--muted)}
 .cmp-table th[scope="row"]{font-size:14px;color:var(--text);font-weight:500;border-bottom:1px solid var(--line)}
 .cmp-table tbody tr:last-child th{border-bottom:0}
 .cmp-table td{white-space:nowrap}
 .cmp-total th,.cmp-total td{background:var(--surface2);font-weight:600}
 .delta.pale{opacity:.6}
-.cmp-graph{display:flex;flex-direction:column;gap:4px;padding-top:14px;border-top:1px solid var(--line)}
+.cmp-graph{display:flex;flex-direction:column;gap:4px;padding-top:10px;border-top:1px solid var(--line)}
 .cmp-graphhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tip table.cmp-tip{width:auto;border-collapse:collapse;font-size:12px}
 .tip .cmp-tip th,.tip .cmp-tip td{padding:1px 8px;border:0;text-align:right;font-weight:400;color:var(--text)}

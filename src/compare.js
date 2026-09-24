@@ -1,11 +1,10 @@
 /*
  * compare.js — the Compare page: runs side by side.
- * Pick runs from this site, or read a Hermes play.log right here in the browser (the file is never
+ * Two runs: pick them from this site, or read a Hermes play.log right here in the browser (the file is never
  * uploaded anywhere). Runs read from files are remembered in this browser only, and can be saved as a
  * small .json file to send to someone (which can be read back in the same way).
  */
-const CMP_MAX = 6;
-const CMP_COLORS = ["var(--s0)", "var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
+const CMP_COLORS = ["var(--s0)", "var(--s1)"];   // the two runs being compared
 const CMP_STORE = "aa-compare-v1";
 
 let UPLOADED = [];          // runs read from files: [{run, label}]
@@ -30,10 +29,11 @@ function cmpFind(id) {
   const r = findRun(id); if (r) return {run: r, label: runTitle(r), mine: true};
   const u = UPLOADED.find(x => x.run.id === id); return u ? {run: u.run, label: u.label, mine: false} : null;
 }
-const cmpDefault = () => { const pb = pbRun(), last = byNumber().pop(); return [...new Set([pb, last].filter(Boolean).map(r => r.id))]; };
+// PB against the latest run (or the one before, if the PB is the latest)
+const cmpDefault = () => { const pb = pbRun(), all = byNumber(), other = all.filter(r => r !== pb).pop(); return [pb || all[0], other].filter(Boolean).map(r => r.id); };
 
 // ---------- Reading files ----------
-async function cmpFiles(files) {
+async function cmpFiles(files, slot) {
   if (!files || !files.length) return;
   cmpStatus = T.cmpReading; renderCompare();
   await new Promise(res => setTimeout(res, 30));   // let "Reading…" show before the (slow) read
@@ -57,11 +57,19 @@ async function cmpFiles(files) {
           UPLOADED.push({run, label: name});
         }
       }
-      if (!state.cmp.includes(id)) { if (state.cmp.length >= CMP_MAX) state.cmp.pop(); state.cmp.push(id); }
+      cmpSet(slot, id);
     } catch (e) { errors.push(f.name + ": " + (e && e.message || e)); }
   }
   cmpStatus = errors.join(" · ");
   cmpSave(); renderCompare();
+}
+
+// Puts a run in slot 0 or 1 (if it's already in the other slot, the two swap)
+function cmpSet(slot, id) {
+  const other = 1 - slot;
+  if (state.cmp[other] === id) state.cmp[other] = state.cmp[slot];
+  state.cmp[slot] = id;
+  state.cmp = state.cmp.filter(Boolean);
 }
 
 // Saves an uploaded run as a small file that can be read back on the Compare page
@@ -73,49 +81,50 @@ function cmpDownload(c) {
 }
 
 // ---------- The page ----------
+const svgSave = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>`;
+const svgFs = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>`;
+
 function renderCompare() {
   const el = $("#view-compare");
   if (!state.cmp) state.cmp = cmpDefault();
-  state.cmp = state.cmp.filter(cmpFind);
+  state.cmp = state.cmp.filter(cmpFind).slice(0, 2);
   const list = state.cmp.map(cmpFind).map((c, i) => ({...c, color: CMP_COLORS[i], d: derive(c.run)}));
-  const full = list.length >= CMP_MAX;
 
-  const chips = list.map((c, i) => `
-    <div class="cmp-chip" style="--c:${c.color}">
-      <span class="swatch" style="background:${c.color}"></span>
-      <div style="display:flex;flex-direction:column;min-width:0">
-        <b class="clamp">${esc(c.label)}</b>
-        <span class="note">${esc(c.d.category)} · <span class="mono">${fmt(c.run.finalIgt, 0)}</span>${c.mine ? "" : " · " + esc(T.cmpUploaded)}</span>
-      </div>
-      ${c.mine ? "" : `<button type="button" class="btn icon ghost" data-save="${i}" aria-label="${esc(T.cmpSave)} ${esc(c.label)}" title="${esc(T.cmpSave)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg></button>`}
-      <button type="button" class="btn icon ghost" data-remove="${i}" aria-label="${esc(T.cmpRemove)} ${esc(c.label)}" title="${esc(T.cmpRemove)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    </div>`).join("");
-  const opt = (id, label) => state.cmp.includes(id) ? "" : `<option value="${esc(id)}">${esc(label)}</option>`;
-  const mineOpts = byNumber().map(r => opt(r.id, runTitle(r) + " · " + fmt(r.finalIgt, 0))).join("");
-  const upOpts = UPLOADED.map(u => opt(u.run.id, u.label + " · " + fmt(u.run.finalIgt, 0))).join("");
+  // One slot per run: pick a run, or upload one into it
+  const options = sel => {
+    const o = (id, label) => `<option value="${esc(id)}"${id === sel ? " selected" : ""}>${esc(label)}</option>`;
+    const mine = byNumber().map(r => o(r.id, runTitle(r) + " · " + fmt(r.finalIgt, 0))).join("");
+    const up = UPLOADED.map(u => o(u.run.id, u.label + " · " + fmt(u.run.finalIgt, 0))).join("");
+    return (sel ? "" : `<option value="" selected>${esc(T.cmpAdd)}</option>`) + (mine ? `<optgroup label="${esc(T.cmpMine)}">${mine}</optgroup>` : "") + (up ? `<optgroup label="${esc(T.cmpUploadedRuns)}">${up}</optgroup>` : "");
+  };
+  const slot = k => {
+    const c = list[k];
+    return `<div class="cmp-slot" data-slot="${k}" style="--c:${CMP_COLORS[k]}">
+      <span class="swatch" style="background:${CMP_COLORS[k]}"></span>
+      <select class="field" data-pick="${k}" aria-label="${esc(T.cmpAdd)}">${options(c && c.run.id)}</select>
+      ${c && !c.mine ? `<button type="button" class="btn icon ghost" data-save="${k}" aria-label="${esc(T.cmpSave)} ${esc(c.label)}" title="${esc(T.cmpSave)}">${svgSave}</button>` : ""}
+      <button type="button" class="btn" data-upload="${k}">${esc(T.cmpUpload)}</button>
+    </div>`;
+  };
 
   el.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:6px"><h1>${esc(T.cmpTitle)}</h1><p class="muted" style="margin:0">${esc(T.cmpIntro)}</p></div>
-    <section class="card cmp-drop" id="cmpDrop" style="display:flex;flex-direction:column;gap:16px">
-      <div class="cmp-chips">${chips || `<span class="muted">${esc(T.cmpNone)}</span>`}</div>
-      <div class="cmp-add">
-        <select class="field" id="cmpAdd" aria-label="${esc(T.cmpAdd)}"${full ? " disabled" : ""}>
-          <option value="">${esc(full ? T.cmpFull(CMP_MAX) : T.cmpAdd)}</option>
-          ${mineOpts ? `<optgroup label="${esc(T.cmpMine)}">${mineOpts}</optgroup>` : ""}
-          ${upOpts ? `<optgroup label="${esc(T.cmpUploadedRuns)}">${upOpts}</optgroup>` : ""}
-        </select>
-        <button type="button" class="btn primary" id="cmpPick">${esc(T.cmpUpload)}</button>
-        <input type="file" id="cmpFile" accept=".log,.txt,.jsonl,.json" multiple hidden>
-        ${UPLOADED.length ? `<button type="button" class="linkbtn" id="cmpForget">${esc(T.cmpForget)}</button>` : ""}
-      </div>
-      ${cmpStatus ? `<p class="cmp-status" role="status" style="margin:0">${esc(cmpStatus)}</p>` : ""}
+    <section class="card" style="display:flex;flex-direction:column;gap:12px">
+      <div class="cmp-slots">${slot(0)}${slot(1)}</div>
+      <input type="file" id="cmpFile" accept=".log,.txt,.jsonl,.json" hidden>
+      ${cmpStatus || UPLOADED.length ? `<div class="cmp-foot">${cmpStatus ? `<span class="cmp-status" role="status">${esc(cmpStatus)}</span>` : "<span></span>"}${UPLOADED.length ? `<button type="button" class="linkbtn" id="cmpForget">${esc(T.cmpForget)}</button>` : ""}</div>` : ""}
     </section>
     ${list.length ? `
     <section class="card tablewrap" style="padding:0">${cmpSplitsTable(list)}</section>
-    <section class="card" style="display:flex;flex-direction:column;gap:14px">
-      <div class="head-row" style="align-items:center"><h2>${esc(T.progressTitle)}</h2><span class="zoominfo" id="cmpZoomInfo"></span></div>
-      <div class="keys"><span>${esc(T.cmpDragZoom)}</span></div>
-      ${list.map((c, i) => `<div class="cmp-graph" style="--c:${c.color}">
+    <section class="card chartcard" id="cmpCard" style="display:flex;flex-direction:column;gap:14px">
+      <div class="head-row" style="align-items:center">
+        <h2>${esc(T.progressTitle)}</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="zoominfo" id="cmpZoomInfo"></span>
+          <button type="button" class="btn icon" id="cmpFsBtn" aria-label="${esc(T.fullScreen)}" title="${esc(T.fullScreen)} (F)">${svgFs}</button>
+        </div>
+      </div>
+      <div class="keys">${T.cmpKeysHelp}</div>
+      ${list.map((c, i) => `<div class="cmp-graph">
         <div class="cmp-graphhead"><span class="swatch" style="background:${c.color}"></span><b>${esc(c.label)}</b><span class="cat ${c.d.category.toLowerCase()}">${esc(c.d.category)}</span><span class="mono muted">${fmt(c.run.finalIgt, 0)}</span></div>
         <div class="chartbox" id="cmpTop${i}"></div><div class="chartbox" id="cmpRes${i}"></div>
       </div>`).join("")}
@@ -124,36 +133,80 @@ function renderCompare() {
     <section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}`;
 
   // controls
-  $("#cmpAdd").addEventListener("change", e => { const v = e.target.value; if (v && !full) { state.cmp.push(v); cmpSave(); renderCompare(); } });
-  $("#cmpPick").addEventListener("click", () => $("#cmpFile").click());
-  $("#cmpFile").addEventListener("change", e => cmpFiles([...e.target.files]));
-  el.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => { state.cmp.splice(+b.dataset.remove, 1); cmpSave(); renderCompare(); }));
+  let uploadSlot = 1;
+  el.querySelectorAll("[data-pick]").forEach(s => s.addEventListener("change", () => { if (s.value) { cmpSet(+s.dataset.pick, s.value); cmpSave(); renderCompare(); } }));
+  el.querySelectorAll("[data-upload]").forEach(b => b.addEventListener("click", () => { uploadSlot = +b.dataset.upload; $("#cmpFile").click(); }));
+  $("#cmpFile").addEventListener("change", e => cmpFiles([...e.target.files].slice(0, 1), uploadSlot));
   el.querySelectorAll("[data-save]").forEach(b => b.addEventListener("click", () => cmpDownload(list[+b.dataset.save])));
   if ($("#cmpForget")) $("#cmpForget").addEventListener("click", () => { const up = new Set(UPLOADED.map(u => u.run.id)); UPLOADED = []; state.cmp = state.cmp.filter(id => !up.has(id)); cmpStatus = ""; cmpSave(); renderCompare(); });
-  const drop = $("#cmpDrop");
-  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
-  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); cmpFiles([...e.dataTransfer.files]); });
+  el.querySelectorAll("[data-slot]").forEach(box => {   // drop a file on a slot to read it into that slot
+    box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("over"); });
+    box.addEventListener("dragleave", () => box.classList.remove("over"));
+    box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("over"); cmpFiles([...e.dataTransfer.files].slice(0, 1), +box.dataset.slot); });
+  });
 
+  cmpKeys = null;
   if (list.length) drawCompare(list);
 }
 
-// ---------- Graphs: each run's own progress graph (same as its Stats page), one under another ----------
-// They share the time axis, zoom and hover line, so the same moment lines up in every run.
+// ---------- Graphs: each run's own progress graph (same as its Stats page), one under the other ----------
+// They share the time axis, zoom and hover line, so the same moment lines up. Full screen fits both on the screen.
+let cmpKeys = null, cmpResize = null;
 function drawCompare(list) {
   const endT = Math.max(...list.map(c => c.run.finalIgt));
   const parts = list.map(c => progressParts(c.run, c.d));
+  const card = $("#cmpCard");
   if (state.cmpZoomKey !== state.cmp.join()) { state.cmpZoom = null; state.cmpZoomKey = state.cmp.join(); }
-  const draw = () => {
-    const [za, zb] = state.cmpZoom || [0, endT];
-    $("#cmpZoomInfo").innerHTML = state.cmpZoom ? `${esc(T.showing)} ${fmt(za, 0)}–${fmt(zb, 0)} <button type="button" class="linkbtn" id="cmpReset">${esc(T.reset)}</button>` : "";
-    if (state.cmpZoom) $("#cmpReset").addEventListener("click", () => { state.cmpZoom = null; draw(); });
-    const shared = {xmin: za, xmaxFix: zb, fitY: !!state.cmpZoom, W: 1280,
-      onBrush: (a, b) => { if (b - a < 30000) return; state.cmpZoom = (a <= 0 && b >= endT) ? null : [a, b]; draw(); }};
-    const ctls = [];
-    parts.forEach((pp, i) => { ctls[i] = mountProgress({...pp, hoverText: cmpHover(list, parts, i)}, $("#cmpTop" + i), $("#cmpRes" + i), shared, 360, 150, t => ctls.forEach((c, k) => { if (k !== i && c) c.showLine(t); })); });
+  const current = () => state.cmpZoom || [0, endT];
+  const setZoom = (a, b) => {
+    const minSpan = 30000;
+    if (b - a < minSpan) { const m = (a + b) / 2; a = m - minSpan / 2; b = m + minSpan / 2; }
+    if (a < 0) { b -= a; a = 0; } if (b > endT) { a -= b - endT; b = endT; } a = Math.max(0, a);
+    state.cmpZoom = (a <= 0 && b >= endT) ? null : [a, b]; draw();
   };
+  function draw() {
+    const [za, zb] = current(), fs = card.classList.contains("fs");
+    const first = $("#cmpTop0");
+    const W = fs ? Math.max(600, first.clientWidth) : 1280;
+    // full screen: split the space under the first graph between the runs (about 70% advancements, 30% gold/TNT)
+    const avail = fs ? Math.max(360, window.innerHeight - first.getBoundingClientRect().top - 70 - (list.length - 1) * 50) / list.length : 0;
+    const Hres = fs ? Math.round(Math.max(120, avail * .3)) : 140, Htop = fs ? Math.round(avail - Hres) : 330;
+    $("#cmpZoomInfo").innerHTML = state.cmpZoom ? `${esc(T.showing)} ${fmt(za, 0)}–${fmt(zb, 0)} <button type="button" class="linkbtn" id="cmpReset">${esc(T.reset)} <kbd>0</kbd></button>` : "";
+    if (state.cmpZoom) $("#cmpReset").addEventListener("click", () => { state.cmpZoom = null; draw(); });
+    const shared = {xmin: za, xmaxFix: zb, fitY: !!state.cmpZoom, W, onBrush: setZoom,
+      onWheel: (t, f) => { const [a, b] = current(); setZoom(t - (t - a) * f, t + (b - t) * f); }, wheelActive: () => card.classList.contains("fs")};
+    const ctls = [];
+    parts.forEach((pp, i) => { ctls[i] = mountProgress({...pp, hoverText: cmpHover(list, parts, i)}, $("#cmpTop" + i), $("#cmpRes" + i), shared, Htop, Hres, t => ctls.forEach((c, k) => { if (k !== i && c) c.showLine(t); })); });
+  }
   draw();
+
+  // Full screen
+  const setFs = on => {
+    card.classList.toggle("fs", on); document.body.classList.toggle("noscroll", on);
+    $("#cmpFsBtn").setAttribute("aria-label", on ? T.exitFullScreen : T.fullScreen);
+    if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    requestAnimationFrame(draw);
+  };
+  const toggleFs = () => { const on = !card.classList.contains("fs"); if (on && card.requestFullscreen) card.requestFullscreen().catch(() => {}); setFs(on); };
+  $("#cmpFsBtn").addEventListener("click", toggleFs);
+  card.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && card.classList.contains("fs")) setFs(false); });
+  if (cmpResize) window.removeEventListener("resize", cmpResize);
+  cmpResize = () => { if (card.isConnected && card.classList.contains("fs")) draw(); };
+  window.addEventListener("resize", cmpResize);
+
+  // Keyboard: same keys as the Stats page graph
+  cmpKeys = e => {
+    const [a, b] = current(), span = b - a, m = (a + b) / 2, step = span * (e.shiftKey ? .8 : .25);
+    if (e.key === "ArrowLeft") setZoom(a - step, b - step);
+    else if (e.key === "ArrowRight") setZoom(a + step, b + step);
+    else if (e.key === "+" || e.key === "=") setZoom(m - span / 4, m + span / 4);
+    else if (e.key === "-" || e.key === "_") setZoom(m - span, m + span);
+    else if (e.key === "0") { state.cmpZoom = null; draw(); }
+    else if (e.key === "f" || e.key === "F") toggleFs();
+    else if (e.key === "Escape" && card.classList.contains("fs")) setFs(false);
+    else return false;
+    return true;
+  };
 }
 
 // Hover text: every run at the same moment (advancements, each multi-criteria line, TNT and gold),
@@ -182,7 +235,7 @@ function cmpHover(list, parts, me) {
 }
 
 // ---------- Tables ----------
-// Ahead / behind the first run, like LiveSplit: "+1:23" behind (red), "−0:45" ahead (green).
+// Ahead / behind the other run, like LiveSplit: "+1:23" behind (red), "−0:45" ahead (green).
 // Pale when this split lost time against the previous one while still ahead (or gained while still behind).
 const cmpSigned = d => (d > 0 ? "+" : "−") + fmtShort(Math.abs(d));
 const cmpDelta = (v, ref, prev) => {
@@ -194,16 +247,16 @@ const cmpDelta = (v, ref, prev) => {
 const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>${list.map(c => `<th scope="col"><span class="swatch" style="background:${c.color};margin-right:8px"></span>${esc(c.label)} <span class="cat ${c.d.category.toLowerCase()}" style="margin-left:6px">${esc(c.d.category)}</span></th>`).join("")}</tr></thead>`;
 
 // Splits: the time on the clock at each split (like LiveSplit; same splits and times as the Overview table),
-// and how far ahead or behind the first run
+// and how far ahead or behind the other run
 function cmpSplitsTable(list) {
   const rowsDef = [
-    ...SPLIT_CARDS.map(i => ({name: SPLITS[i].name, icon: list[0].d.splits[i].icon, at: c => splitMark(c.d.splits[i], i)})),
+    ...SPLIT_CARDS.map(i => ({name: SPLITS[i].name, icon: SPLITS[i].icon, at: c => splitMark(c.d.splits[i], i)})),
     {name: T.timeLabel, total: true, at: c => c.run.finalIgt},
   ];
   const prev = list.map(() => null);   // last difference for each run, to tell if a split gained or lost time
   const rows = rowsDef.map(r => `<tr${r.total ? ` class="cmp-total"` : ""}><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${r.icon ? ic(r.icon) : ""}${esc(r.name)}</span></th>${list.map((c, k) => {
-    const v = r.at(c), ref = r.at(list[0]);
-    const cell = `<span class="mono">${v != null ? fmt(v, 0) : "—"}</span>${k ? cmpDelta(v, ref, r.total ? null : prev[k]) : ""}`;
+    const v = r.at(c), ref = list.length > 1 ? r.at(list[1 - k]) : null;
+    const cell = `<span class="mono">${v != null ? fmt(v, 0) : "—"}</span>${cmpDelta(v, ref, r.total ? null : prev[k])}`;
     if (v != null && ref != null && !r.total) prev[k] = v - ref;
     return `<td>${cell}</td>`;
   }).join("")}</tr>`).join("");
@@ -211,7 +264,7 @@ function cmpSplitsTable(list) {
 }
 
 function cmpStatsTable(list) {
-  const cellOf = (f, format, delta) => (c, k) => { const v = f(c); return `<span class="mono">${v != null ? format(v) : "—"}</span>${delta && k ? cmpDelta(v, f(list[0])) : ""}`; };
+  const cellOf = (f, format, delta) => (c, k) => { const v = f(c); return `<span class="mono">${v != null ? format(v) : "—"}</span>${delta && list.length > 1 ? cmpDelta(v, f(list[1 - k])) : ""}`; };
   const multiDone = id => c => { const m = c.d.multis.find(q => q.id === id); return m ? m.done : null; };
   const rows = [
     {icon: "s_skulls", name: T.cmpSkullsTime, cell: cellOf(c => c.d.skullSplit ? c.d.skullSplit.dur : null, fmtShort, true)},
