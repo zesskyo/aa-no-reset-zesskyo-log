@@ -47,7 +47,12 @@
     "seed": "7208533899371619359",
     "video": "https://youtu.be/OB3QLkMbdvQ"
   },
-  "10": {},
+  "10": {
+    "seed": "-7811287387763497474",
+    "intentionalDeaths": [
+      4
+    ]
+  },
   "11": {
     "date": "2026-09-22",
     "intentionalDeaths": [
