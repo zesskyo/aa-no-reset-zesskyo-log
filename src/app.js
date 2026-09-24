@@ -408,11 +408,8 @@ document.getElementById("app").innerHTML = `
     <div class="card" id="pbCard"></div>
   </section>
   <section style="display:flex;flex-direction:column;gap:14px">
-    <h2>Splits</h2>
+    <h2>Fastest Splits</h2>
     <div class="grid-phases" id="bestPhases"></div>
-  </section>
-  <section style="display:flex;flex-direction:column;gap:14px">
-    <h2>Other splits</h2>
     <div class="grid-phases" id="otherSplits"></div>
   </section>
   <section id="aggregates"></section>
@@ -441,6 +438,7 @@ function renderHeader() {
 }
 function go(view, runId) {
   state.view = view; if (runId) state.runId = runId;
+  const rb = $("#runbar"); if (rb) rb.classList.remove("show");
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
   ["runs", "run", "compare"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== view));
   render(); window.scrollTo(0, 0);
@@ -578,13 +576,17 @@ function mountChart(box, opts, describe) {
   const {svg, geom} = chartSVG(opts);
   box.innerHTML = svg + '<div class="tip"></div>';
   const svgEl = box.querySelector("svg"), tip = box.querySelector(".tip"), line = box.querySelector(".hoverline"), hit = box.querySelector(".hit");
-  if (!hit) return;
-  const hide = () => { tip.style.display = "none"; line.setAttribute("visibility", "hidden"); };
+  if (!hit) return null;
+  const hide = () => { tip.style.display = "none"; line.setAttribute("visibility", "hidden"); if (opts.onHover) opts.onHover(null); };
+  const ctl = {
+    showLine(t) { if (t == null || t < geom.xmin || t > geom.xmax) { line.setAttribute("visibility", "hidden"); return; } const x = geom.padL + (t - geom.xmin) / (geom.xmax - geom.xmin) * geom.iw; line.setAttribute("x1", x); line.setAttribute("x2", x); line.setAttribute("visibility", "visible"); }
+  };
   hit.addEventListener("pointermove", ev => {
     const r = svgEl.getBoundingClientRect(), scale = geom.W / r.width;
     const x = (ev.clientX - r.left) * scale, t = geom.xmin + (x - geom.padL) / geom.iw * (geom.xmax - geom.xmin);
     if (t < geom.xmin || t > geom.xmax) return hide();
     line.setAttribute("x1", x); line.setAttribute("x2", x); line.setAttribute("visibility", "visible");
+    if (opts.onHover) opts.onHover(t);
     const y = (ev.clientY - r.top) * scale;
     const near = geom.hot.filter(h => Math.abs(h.x - x) < 12 && Math.abs(h.y - y) < 14).sort((a, b) => Math.abs(a.x - x) - Math.abs(b.x - x))[0];
     tip.innerHTML = near ? `<div class="thead"><b>${esc(near.text)}</b></div>${near.sub ? `<div>${esc(near.sub)}</div>` : ""}<div class="mono muted">${fmt(near.t, 0)}</div>` : opts.clean ? describe(t) : `<div class="mono muted">${fmt(t, 0)}</div>` + describe(t);
@@ -610,6 +612,7 @@ function mountChart(box, opts, describe) {
     hit.addEventListener("pointerup", end); hit.addEventListener("pointercancel", () => { drag = null; brush.setAttribute("visibility", "hidden"); });
   }
   if (opts.onWheel) hit.addEventListener("wheel", ev => { if (!opts.wheelActive()) return; ev.preventDefault(); opts.onWheel(toT(ev).t, ev.deltaY > 0 ? 1.25 : 0.8); }, {passive: false});
+  return ctl;
 }
 const lastBefore = (pts, t) => { let last = null; for (const p of pts) { if (p[0] <= t) last = p; else break; } return last; };
 const evLabel = e => e[4] ? "<b>" + esc(advName(e[2])) + "</b>" : esc(critLabel(e[2], e[3]));
@@ -657,7 +660,7 @@ function renderRuns() {
   const ely = avg(r => r.meta && r.meta.elytraCm != null ? r.meta.elytraCm / 100000 : null);
   const tpdPair = ic("s_tnt") && ic("s_debris") ? `<div class="stat stat-ic"><span class="sico pair">${ic("s_tnt").replace('width="20" height="20"', 'width="28" height="28"')}<span class="per">/</span>${ic("s_debris").replace('width="20" height="20"', 'width="28" height="28"')}</span><span class="v">${f1(tpd)}</span></div>` : av("s_tnt", "TNT per debris", f1(tpd));
   $("#aggregates").innerHTML = `
-    <div class="card"><h2 style="margin-bottom:12px">Average per run</h2><div class="statgrid">
+    <div class="card"><h2 style="margin-bottom:12px">Average stats</h2><div class="statgrid">
       ${av("s_deaths", "Deaths", f1(avg(nonIntentional)))}
       ${av("s_elytra", "Elytra distance", ely != null ? ely.toFixed(1) + " km" : "—")}
       ${av("s_skulls", "Wither skeletons killed per skull", (() => { const a = pool.reduce((x, r) => { const q = derive(r).skullRate; return [x[0] + q.skulls, x[1] + q.kills]; }, [0, 0]); return a[0] ? "1 / " + (a[1] / a[0]).toFixed(1) : "—"; })())}
@@ -678,13 +681,13 @@ function renderRuns() {
       .sort((a, b) => (keyOf[state.sort.key](a) - keyOf[state.sort.key](b)) * state.sort.dir || runNum(a) - runNum(b));
     const th = (key, label) => { const on = state.sort.key === key; return `<th scope="col" aria-sort="${on ? (state.sort.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" class="sortbtn${on ? " on" : ""}" data-sort="${key}">${label}<span aria-hidden="true">${on ? (state.sort.dir > 0 ? " ▲" : " ▼") : ""}</span></button></th>`; };
     tbl.innerHTML = `<table style="min-width:980px"><thead><tr>${th("num", "Run")}${th("date", "Date")}${th("hundred", "100%")}${th("igt", "Time (IGT)")}${cols.map(i => th("p" + i, esc(PHASES[i].name))).join("")}<th scope="col"><span class="sr">Actions</span></th></tr></thead><tbody>` +
-      shown.map(r => { const d = derive(r), u = uid(r); return `<tr>
-        <td style="white-space:nowrap"><span class="runno">${esc(runNum(r))}</span>${videoLink(r)}${pb === r ? '<span class="badge">PB</span>' : ""}${r.src === "local" ? '<span class="badge local">Yours</span>' : ""}${r.meta && r.meta.notes ? `<div class="note clamp" title="${esc(r.meta.notes)}">${esc(r.meta.notes)}</div>` : ""}</td>
+      shown.map(r => { const d = derive(r), u = uid(r); return `<tr class="runrow" data-open="${esc(u)}" tabindex="0" aria-label="Open ${esc(runTitle(r))}">
+        <td style="white-space:nowrap"><span class="runno">${esc(runNum(r))}</span>${videoLink(r)}${pb === r ? '<span class="badge">PB</span>' : ""}${r.src === "local" ? '<span class="badge local">Yours</span>' : ""}</td>
         <td style="white-space:nowrap">${esc(runDay(r))}${r.meta && r.meta.seed ? `<div class="note mono">${esc(r.meta.seed)}</div>` : ""}</td>
         <td>${hundred(d.category)}</td>
         <td class="mono">${fmt(r.finalIgt, 0)}</td>
         ${cols.map(i => [d.phases[i], i]).map(([p, i]) => `<td class="mono">${phaseMark(p, i) != null ? fmt(phaseMark(p, i), 0) : "—"}</td>`).join("")}
-        <td><div class="rowactions"><button class="btn" data-open="${esc(u)}">Open</button>${r.src === "local" || canPublish ? `<button class="btn ghost" data-del="${esc(u)}" aria-label="Delete ${esc(runTitle(r))}">Delete</button>` : ""}</div></td>
+        <td><div class="rowactions">${r.src === "local" || canPublish ? `<button class="btn ghost" data-del="${esc(u)}" aria-label="Delete ${esc(runTitle(r))}">Delete</button>` : ""}</div></td>
       </tr>`; }).join("") + `</tbody></table>` + (shown.length ? "" : `<div class="empty">No runs match that filter.</div>`) + HUNDRED_NOTE;
     tbl.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", () => { const k = b.dataset.sort; state.sort = state.sort.key === k ? {key: k, dir: -state.sort.dir} : {key: k, dir: 1}; renderRuns(); }));
 
@@ -771,17 +774,16 @@ function renderRun() {
   if ((run.st.tntHeld || []).length) lines.push({key: "tnt", name: "TNT held", color: "var(--bad)", dash: true});
   if (state.focus && !lines.some(l => l.key === state.focus)) state.focus = null;
   el.innerHTML = `
+    <div class="pagerwrap">${pager(run)}</div>
     <div class="head-row">
       <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-        ${pager(run)}
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1>${esc(runTitle(run))}</h1>${videoLink(run, true)}</div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="cat ${d.category.toLowerCase()}">100%: ${hundred(d.category)}</span><span class="muted">${esc(run.player)}, ${esc(runDay(run))}</span>${meta.seed ? `<span class="muted">· seed <span class="mono">${esc(meta.seed)}</span></span>` : ""}</div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1 id="runH1">${esc(runTitle(run))}</h1>${videoLink(run, true)}</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="cat ${d.category.toLowerCase()}">${d.category}</span><span class="muted">${esc(runDay(run))}</span>${meta.seed ? `<span class="muted">· Seed: <span class="mono">${esc(meta.seed)}</span></span>` : ""}</div>
       </div>
       <div class="times">
         <div><span class="label">Time (IGT)</span><span class="mono" style="font-size:34px;font-weight:600;color:var(--accent)">${fmt(run.finalIgt)}</span></div>
       </div>
     </div>
-    ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">Notes</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}
     ${d.category === "Invalid" ? `<div class="card" style="border-color:var(--bad)"><b>Invalid run.</b> <span class="muted">Missing ${d.missing.map(id => esc(advName(id))).join(", ")}. It's left out of PBs and bests.</span></div>` : ""}
     <section class="card" style="display:flex;flex-direction:column;gap:14px">
       <h2>Phases</h2>
@@ -819,7 +821,8 @@ function renderRun() {
         <div><label class="label" for="statsFile">World stats file</label><p class="note" style="margin:4px 0 8px">Hermes doesn't log movement, so elytra distance comes from <span class="mono">saves/&lt;world&gt;/stats/&lt;uuid&gt;.json</span>.</p><input type="file" id="statsFile" accept=".json"></div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="metaSave">${run.src === "local" ? "Save details" : "Publish details"}</button><span class="status" id="metaStatus" role="status" aria-live="polite"></span></div>`
         : ""}
-      </section>` : ""}`;
+      </section>` : ""}
+    ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">Notes</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}`;
 
   // ---------- progress chart (top) + resources panel (bottom), sharing time range ----------
   const adv = seriesFor(run, "adv");
@@ -877,10 +880,10 @@ function renderRun() {
     if (state.zoom) $("#zReset").addEventListener("click", () => { state.zoom = null; drawMain(); });
     const common = {xmin: za, xmaxFix: zb, fitY: !!state.zoom, W, onBrush: (a, b) => setZoom(a, b),
       onWheel: (t, f) => { const [a, b] = cur(); setZoom(t - (t - a) * f, t + (b - t) * f); }, wheelActive: () => card.classList.contains("fs")};
-    mountChart(box, {...common, series: top, yKey: "adv", H: Ht, bands: bandSegs, deaths: deathsShown, markers, markersDim: dim("adv"), noXAxis: true, clean: true},
-      t => { const ph = phaseAt(t); return `<div class="thead"><span class="mono">${fmt(t, 0)}</span>${ph ? `<span>${esc(ph.name)}</span>` : ""}</div>` + rows(top, t); });
-    if (res.length) mountChart(rbox, {...common, series: res, yKey: "res", H: Hr, bands: bandSegs, bandLabels: false, padRFix: 120, strip: run.dims.length ? {segs: run.dims, end: run.finalIgt} : null, clean: true},
-      t => `<div class="thead"><span class="mono">${fmt(t, 0)}</span></div>` + rows(res, t));
+    let cTop = null, cRes = null;
+    const both = t => { const ph = phaseAt(t); return `<div class="thead"><span class="mono">${fmt(t, 0)}</span>${ph ? `<span>${esc(ph.name)}</span>` : ""}</div>` + rows(top, t) + (res.length ? `<div class="tsep"></div>` + rows(res, t) : ""); };
+    cTop = mountChart(box, {...common, series: top, yKey: "adv", H: Ht, bands: bandSegs, deaths: deathsShown, markers, markersDim: dim("adv"), noXAxis: true, clean: true, onHover: t => cRes && cRes.showLine(t)}, both);
+    if (res.length) cRes = mountChart(rbox, {...common, series: res, yKey: "res", H: Hr, bands: bandSegs, bandLabels: false, padRFix: 120, strip: run.dims.length ? {segs: run.dims, end: run.finalIgt} : null, clean: true, onHover: t => cTop && cTop.showLine(t)}, both);
     else rbox.innerHTML = "";
   }
   drawMain();
@@ -941,6 +944,7 @@ function renderRun() {
       t => { const l = lastBefore(kp, t); return `<div class="thead"><span class="mono">${fmt(realOf(t), 0)}</span><span class="mono">${fmtShort(t)}</span></div><div><b class="mono">${l ? l[1] : 0}</b> wither skeletons · <b class="mono">${skullsIn.filter(x => A(x) <= t).length}</b> skulls</div>`; });
   }
   bindPager(el);
+  mountRunBar(run, d);
   if (editable) {
     let elytraCm = meta.elytraCm;
     $("#statsFile").addEventListener("change", async e => {
@@ -959,7 +963,7 @@ function renderRun() {
       const vid = $("#mVideo").value.trim(), dt = $("#mDate").value;
       if (vid && !okUrl(vid)) { $("#metaStatus").className = "status err"; $("#metaStatus").textContent = "The video link needs to start with http:// or https://."; return; }
       const nextMeta = {...meta, num: nv > 0 ? nv : undefined, intent, elytraCm,
-        date: /^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : undefined, Seed: $("#mSeed").value.trim() || undefined, video: vid || undefined, notes: $("#mNotes").value.trim() || undefined};
+        date: /^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : undefined, seed: $("#mSeed").value.trim() || undefined, video: vid || undefined, notes: $("#mNotes").value.trim() || undefined};
       $("#metaSave").disabled = true; $("#metaStatus").className = "status"; $("#metaStatus").textContent = run.src === "local" ? "Saving…" : "Publishing…";
       const res = await saveRunMeta(run, nextMeta, "Published details for " + runTitle({...run, meta: nextMeta}) + ".");
       if (res.ok) { if (run.src === "local") { const s = $("#metaStatus"); if (s) s.textContent = "Saved."; } return; }
@@ -992,6 +996,34 @@ function pager(run) {
     <button type="button" class="pg arrow" data-go="${i < n - 1 ? esc(uid(list[i + 1])) : ""}" ${i < n - 1 ? "" : "disabled"} aria-label="Next run" title="Next run (])">›</button>
     ${n > 1 ? `<form class="goto" id="gotoForm"><label for="gotoRun" class="note">Go to run</label><input id="gotoRun" type="text" inputmode="numeric" autocomplete="off" placeholder="#"><button type="submit" class="pg arrow" aria-label="Go">→</button><span class="note" id="gotoMsg" role="status" aria-live="polite"></span></form>` : ""}
   </nav>`;
+}
+let runBarObs = null;
+function mountRunBar(run, d) {
+  let bar = $("#runbar");
+  if (!bar) { bar = document.createElement("div"); bar.id = "runbar"; bar.className = "runbar"; document.querySelector("header.top").after(bar); }
+  const list = orderedRuns(), i = list.indexOf(run);
+  let collapsed = false; try { collapsed = localStorage.getItem("aa-runbar") === "min"; } catch {}
+  bar.innerHTML = collapsed
+    ? `<button type="button" class="runbar-tab" id="rbToggle" aria-expanded="false" title="Show run bar">${esc(runTitle(run))} <span aria-hidden="true">▾</span></button>`
+    : `<div class="runbar-inner">
+        <button type="button" class="pg arrow" id="rbPrev" ${i > 0 ? "" : "disabled"} aria-label="Previous run">‹</button>
+        <span class="runbar-title">${esc(runTitle(run))}</span>
+        <span class="cat ${d.category.toLowerCase()}">${d.category}</span>
+        <span class="mono runbar-time">${fmt(run.finalIgt)}</span>
+        <button type="button" class="pg arrow" id="rbNext" ${i < list.length - 1 ? "" : "disabled"} aria-label="Next run">›</button>
+        <button type="button" class="runbar-hide" id="rbToggle" aria-expanded="true" title="Minimise">▴</button>
+      </div>`;
+  const tog = $("#rbToggle"); tog.addEventListener("click", () => { try { localStorage.setItem("aa-runbar", collapsed ? "full" : "min"); } catch {} mountRunBar(run, d); });
+  const pv = $("#rbPrev"), nx = $("#rbNext");
+  if (pv) pv.addEventListener("click", () => { state.runId = uid(list[i - 1]); renderRun(); });
+  if (nx) nx.addEventListener("click", () => { state.runId = uid(list[i + 1]); renderRun(); });
+  const hh = document.querySelector("header.top").getBoundingClientRect().height;
+  bar.style.top = hh + "px";
+  if (runBarObs) runBarObs.disconnect();
+  const h1 = $("#runH1");
+  const update = vis => bar.classList.toggle("show", state.view === "run" && !vis);
+  if ("IntersectionObserver" in window && h1) { runBarObs = new IntersectionObserver(es => update(es[0].isIntersecting), {rootMargin: `-${Math.round(hh)}px 0px 0px 0px`}); runBarObs.observe(h1); }
+  else update(false);
 }
 function bindPager(el) {
   el.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => { if (b.dataset.go) { state.runId = b.dataset.go; renderRun(); } }));
@@ -1076,12 +1108,18 @@ function render() {
   else renderCompare();
 }
 
+$("#runsTable").addEventListener("keydown", e => {
+  const row = e.target.closest && e.target.closest("tr[data-open]");
+  if (row && e.target === row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); go("run", row.dataset.open); }
+});
 $("#runsTable").addEventListener("change", e => {
   const id = e.target.dataset && e.target.dataset.sel; if (!id) return;
   e.target.checked ? state.selected.add(id) : state.selected.delete(id); renderRuns();
 });
 $("#runsTable").addEventListener("click", async e => {
-  const b = e.target.closest("button"); if (!b) return;
+  if (e.target.closest("a")) return;   // video link
+  const b = e.target.closest("button");
+  if (!b) { const row = e.target.closest("tr[data-open]"); if (row) go("run", row.dataset.open); return; }
   if (b.dataset.open) return go("run", b.dataset.open);
   if (b.dataset.del) {
     const r = findRun(b.dataset.del);
