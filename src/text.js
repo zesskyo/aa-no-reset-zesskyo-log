@@ -8,6 +8,7 @@ const T = {
   siteSubtitle: "(Zesskyo's Log)",
   tabOverview: "Overview",
   tabStats: "Stats",
+  tabCompare: "Compare",
 
   // Overview page
   pb: "PB",
@@ -75,6 +76,30 @@ const T = {
   missing: "Missing",
   showRunBar: "Show run bar",
   minimise: "Minimise",
+
+  // Compare page
+  cmpTitle: "Compare runs",
+  cmpIntro: "Put up to 6 runs side by side: runs from this site, or your own Hermes log.",
+  cmpNone: "No runs picked yet.",
+  cmpAdd: "Add a run…",
+  cmpFull: max => `${max} runs at most — remove one to add another`,
+  cmpMine: "Runs on this site",
+  cmpUploadedRuns: "Your uploaded runs",
+  cmpUploaded: "uploaded",
+  cmpUpload: "Upload Hermes log",
+  cmpHelp: `Use the <span class="mono">play.log</span> from Hermes (or a saved <span class="mono">.aa-run.json</span>), or drop it on this box. It's read in your browser and never sent anywhere; uploaded runs are remembered in this browser only.`,
+  cmpReading: "Reading…",
+  cmpBadJson: "This isn't a saved run.",
+  cmpSave: "Save as a file",
+  cmpRemove: "Remove",
+  cmpForget: "Forget uploaded runs",
+  cmpDragZoom: "Drag to zoom",
+  cmpSplitDot: "A split starts",
+  cmpFinished: "finished",
+  cmpDoneAt: "done at",
+  cmpAdvancements: "Advancements",
+  cmpThunder: "Thunder (Very Very Frightening)",
+  cmpRiptide: (uses, sessions) => `${uses} uses · ${sessions} session${sessions === 1 ? "" : "s"}`,
 
   // Graph hover text
   hoverAdv: "Adv",

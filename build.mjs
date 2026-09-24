@@ -17,7 +17,7 @@ const read = p => fs.readFileSync(rd(p), "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "run-switcher.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "run-switcher.js", "compare.js", "app.js",
 ];
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read("src/" + f)).join("\n") + "\n})();\n";
 const appCss = read("src/app.css");
