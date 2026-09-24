@@ -1,5 +1,10 @@
 {
-  "1": {},
+  "1": {
+    "seed": "-6932149389784936231",
+    "video": "https://youtu.be/oboHcFLN1_g",
+    "notes": "Jungle spawn with ocean/BT seed and good nether. 300 block blind and got GP on the way to SH, ship on 32nd w/ transport for ~50min fk, midgame was slow, got all gold blocks solely from monuments, 1/39 on trident (missed thunder because of this), last biome was warm ocean, endgame was nothing special (forgot guardian lol)",
+    "intentionalDeaths": [1, 2]
+  },
   "2": {},
   "3": {},
   "4": {},
@@ -11,11 +16,7 @@
   "10": {},
   "11": {
     "date": "2026-09-22",
-    "intentionalDeaths": [
-      2
-    ],
-    "notIntentionalDeaths": [
-      1
-    ]
+    "intentionalDeaths": [2],
+    "notIntentionalDeaths": [1]
   }
 }
