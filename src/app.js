@@ -959,7 +959,7 @@ function renderRun() {
       const vid = $("#mVideo").value.trim(), dt = $("#mDate").value;
       if (vid && !okUrl(vid)) { $("#metaStatus").className = "status err"; $("#metaStatus").textContent = "The video link needs to start with http:// or https://."; return; }
       const nextMeta = {...meta, num: nv > 0 ? nv : undefined, intent, elytraCm,
-        date: /^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : undefined, seed: $("#mSeed").value.trim() || undefined, video: vid || undefined, notes: $("#mNotes").value.trim() || undefined};
+        date: /^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : undefined, Seed: $("#mSeed").value.trim() || undefined, video: vid || undefined, notes: $("#mNotes").value.trim() || undefined};
       $("#metaSave").disabled = true; $("#metaStatus").className = "status"; $("#metaStatus").textContent = run.src === "local" ? "Saving…" : "Publishing…";
       const res = await saveRunMeta(run, nextMeta, "Published details for " + runTitle({...run, meta: nextMeta}) + ".");
       if (res.ok) { if (run.src === "local") { const s = $("#metaStatus"); if (s) s.textContent = "Saved."; } return; }
