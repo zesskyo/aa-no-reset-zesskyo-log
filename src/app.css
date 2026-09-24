@@ -297,3 +297,11 @@ th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:block}
 .delta.pale{opacity:.6}
 .cmp-graph{display:flex;flex-direction:column;gap:4px;padding-top:14px;border-top:1px solid var(--line)}
 .cmp-graphhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tip table.cmp-tip{width:auto;border-collapse:collapse;font-size:12px}
+.tip .cmp-tip th,.tip .cmp-tip td{padding:1px 8px;border:0;text-align:right;font-weight:400;color:var(--text)}
+.tip .cmp-tip th:first-child,.tip .cmp-tip td:first-child{text-align:left;padding-left:0;color:var(--muted)}
+.tip .cmp-tip th{font-size:12px;color:var(--muted)}
+.tip .cmp-tip .me{font-weight:700;color:var(--text)}
+.tip .cmp-tip tr.split td{color:var(--muted);padding-bottom:4px}
+.tip .cmp-tip tr.sep td{border-top:1px solid var(--line);padding:0;height:4px}
+.tip .cmp-tip .swatch{width:10px}

@@ -94,9 +94,9 @@ const T = {
   cmpForget: "Forget uploaded runs",
   cmpDragZoom: "Drag to zoom",
   cmpSegment: "This split:",
-  cmpAdvancements: "Advancements",
-  cmpThunder: "Thunder (Very Very Frightening)",
-  cmpRiptide: (uses, sessions) => `${uses} uses · ${sessions} session${sessions === 1 ? "" : "s"}`,
+  cmpSkullsTime: "Skulls time",
+  cmpDebrisTime: "Debris time",
+  cmpFinished: "Finished",
 
   // Graph hover text
   hoverAdv: "Adv",

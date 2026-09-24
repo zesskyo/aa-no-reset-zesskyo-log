@@ -7,8 +7,7 @@
 const CMP_MAX = 6;
 const CMP_COLORS = ["var(--s0)", "var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
 const CMP_STORE = "aa-compare-v1";
-// Multi-criteria advancements whose finish time is shown under Run stats
-const CMP_MULTIS = ["adventure/adventuring_time", "husbandry/complete_catalogue"];
+
 let UPLOADED = [];          // runs read from files: [{run, label}]
 let cmpStatus = "";         // message under the upload button
 
@@ -152,9 +151,34 @@ function drawCompare(list) {
     const shared = {xmin: za, xmaxFix: zb, fitY: !!state.cmpZoom, W: 1280,
       onBrush: (a, b) => { if (b - a < 30000) return; state.cmpZoom = (a <= 0 && b >= endT) ? null : [a, b]; draw(); }};
     const ctls = [];
-    parts.forEach((pp, i) => { ctls[i] = mountProgress(pp, $("#cmpTop" + i), $("#cmpRes" + i), shared, 360, 150, t => ctls.forEach((c, k) => { if (k !== i && c) c.showLine(t); })); });
+    parts.forEach((pp, i) => { ctls[i] = mountProgress({...pp, hoverText: cmpHover(list, parts, i)}, $("#cmpTop" + i), $("#cmpRes" + i), shared, 360, 150, t => ctls.forEach((c, k) => { if (k !== i && c) c.showLine(t); })); });
   };
   draw();
+}
+
+// Hover text: every run at the same moment (advancements, each multi-criteria line, TNT and gold),
+// with the run under the mouse in bold
+function cmpHover(list, parts, me) {
+  const val = (pp, key, t) => { const s = [...pp.top, ...pp.res].find(x => x.key === key); if (!s) return null; const l = lastBefore(s.points, t); return l ? l[1] : 0; };
+  const orDash = v => v == null ? "—" : v;
+  const rows = [
+    {name: T.hoverAdv, color: MCOL.adv, v: (c, pp, t) => val(pp, "adv", t)},
+    ...Object.keys(MULTI).map(id => ({name: MULTI[id], color: MCOL[id], v: (c, pp, t) => {
+      const m = c.d.multis.find(q => q.id === id);
+      if (!m) return "0/" + REQ[id];
+      return m.done != null && t >= m.done ? "✓" : val(pp, id, t) + "/" + m.tot;
+    }})),
+    null,
+    {name: T.hoverTnt, color: "var(--bad)", v: (c, pp, t) => orDash(val(pp, "tnt", t))},
+    {name: T.hoverGold, color: "var(--gold)", v: (c, pp, t) => orDash(val(pp, "gold", t))},
+  ];
+  const splitAt = (c, t) => { if (t > c.run.finalIgt) return T.cmpFinished; const p = c.d.splits.find(q => q.segs.some(g => t >= g[0] && t <= g[1])); return p ? p.name : ""; };
+  const cls = k => k === me ? ` class="me"` : "";
+  return t => `<div class="thead"><span class="mono">${fmt(t, 0)}</span></div><table class="cmp-tip">
+    <thead><tr><th></th>${list.map((c, k) => `<th${cls(k)}><span class="swatch" style="background:${c.color}"></span> ${esc(c.label)}</th>`).join("")}</tr></thead>
+    <tbody><tr class="split"><td></td>${list.map((c, k) => `<td${cls(k)}>${esc(splitAt(c, t))}</td>`).join("")}</tr>
+    ${rows.map(r => r ? `<tr><td><span class="swatch" style="background:${r.color}"></span> ${esc(r.name)}</td>${list.map((c, k) => `<td class="mono${k === me ? " me" : ""}">${r.v(c, parts[k], t)}</td>`).join("")}</tr>` : `<tr class="sep"><td colspan="${list.length + 1}"></td></tr>`).join("")}
+    </tbody></table>`;
 }
 
 // ---------- Tables ----------
@@ -169,10 +193,11 @@ const cmpDelta = (v, ref, prev) => {
 };
 const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>${list.map(c => `<th scope="col"><span class="swatch" style="background:${c.color};margin-right:8px"></span>${esc(c.label)} <span class="cat ${c.d.category.toLowerCase()}" style="margin-left:6px">${esc(c.d.category)}</span></th>`).join("")}</tr></thead>`;
 
-// Splits: the time on the clock when each split was done (like LiveSplit), and how far ahead or behind the first run
+// Splits: the time on the clock at each split (like LiveSplit; same splits and times as the Overview table),
+// and how far ahead or behind the first run
 function cmpSplitsTable(list) {
   const rowsDef = [
-    ...SPLITS.map((s, i) => ({name: s.name, icon: list[0].d.splits[i].icon, at: c => c.d.splits[i].end})),
+    ...SPLIT_CARDS.map(i => ({name: SPLITS[i].name, icon: list[0].d.splits[i].icon, at: c => splitMark(c.d.splits[i], i)})),
     {name: T.timeLabel, total: true, at: c => c.run.finalIgt},
   ];
   const prev = list.map(() => null);   // last difference for each run, to tell if a split gained or lost time
@@ -186,14 +211,15 @@ function cmpSplitsTable(list) {
 }
 
 function cmpStatsTable(list) {
-  const timeRow = (icon, name, f) => ({icon, name, cell: (c, k) => { const v = f(c); return `<span class="mono">${v != null ? fmt(v, 0) : "—"}</span>${k ? cmpDelta(v, f(list[0])) : ""}`; }});
+  const cellOf = (f, format, delta) => (c, k) => { const v = f(c); return `<span class="mono">${v != null ? format(v) : "—"}</span>${delta && k ? cmpDelta(v, f(list[0])) : ""}`; };
+  const multiDone = id => c => { const m = c.d.multis.find(q => q.id === id); return m ? m.done : null; };
   const rows = [
-    {icon: null, name: T.cmpAdvancements, cell: c => `<span class="mono">${c.d.comp.length}/${Object.keys(ADV).length}</span>`},
-    ...STAT_CARDS.filter(k => k !== "deaths" && k !== "elytra").map(k => ({icon: STAT_DEFS[k].icon, name: STAT_DEFS[k].name(), cell: c => `<span class="mono">${STAT_DEFS[k].one(c.run)}</span>`})),
-    {icon: "s_skulls", name: T.skullsSplit, cell: (c, k) => { const v = c.d.skullSplit && c.d.skullSplit.dur; const r = list[0].d.skullSplit && list[0].d.skullSplit.dur; return `<span class="mono">${v != null ? fmtShort(v) : "—"}</span>${k ? cmpDelta(v, r) : ""}`; }},
-    ...CMP_MULTIS.map(id => timeRow(MICON[id], advName(id), c => { const m = c.d.multis.find(q => q.id === id); return m ? m.done : null; })),
-    timeRow("thunder", T.cmpThunder, c => c.d.thunder),
-    {icon: "trident", name: T.hoverRiptide, cell: c => `<span class="mono">${c.d.riptide.length ? T.cmpRiptide(c.d.riptide.reduce((a, r) => a + r.uses, 0), c.d.riptide.length) : "—"}</span>`},
+    {icon: "s_skulls", name: T.cmpSkullsTime, cell: cellOf(c => c.d.skullSplit ? c.d.skullSplit.dur : null, fmtShort, true)},
+    {icon: "debris", name: T.cmpDebrisTime, cell: cellOf(c => c.d.debrisSplit.start != null ? c.d.debrisSplit.dur : null, fmtShort, true)},
+    {icon: MICON["husbandry/complete_catalogue"], name: advName("husbandry/complete_catalogue"), cell: cellOf(multiDone("husbandry/complete_catalogue"), t => fmt(t, 0), true)},
+    {icon: MICON["adventure/adventuring_time"], name: advName("adventure/adventuring_time"), cell: cellOf(multiDone("adventure/adventuring_time"), t => fmt(t, 0), true)},
+    {icon: STAT_DEFS.creepers.icon, name: STAT_DEFS.creepers.name(), cell: cellOf(c => c.run.tot.creepers, num)},
+    {icon: STAT_DEFS.shulkers.icon, name: STAT_DEFS.shulkers.name(), cell: cellOf(c => c.run.tot.shulkerOpen, num)},
   ];
   return `<table class="cmp-table">${cmpHead(list, T.runStatsTitle)}<tbody>${rows.map(r => `<tr><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${r.icon ? ic(r.icon) : ""}${esc(r.name)}</span></th>${list.map((c, k) => `<td>${r.cell(c, k)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
