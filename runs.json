@@ -3,9 +3,16 @@
     "seed": "-6932149389784936231",
     "video": "https://youtu.be/oboHcFLN1_g",
     "notes": "Jungle spawn with ocean/BT seed and good nether. 300 block blind and got GP on the way to SH, ship on 32nd w/ transport for ~50min fk, midgame was slow, got all gold blocks solely from monuments, 1/39 on trident (missed thunder because of this), last biome was warm ocean, endgame was nothing special (forgot guardian lol)",
-    "intentionalDeaths": [1, 2]
+    "intentionalDeaths": [
+      1,
+      2
+    ]
   },
-  "2": {},
+  "2": {
+    "seed": "-6360942484901783542",
+    "video": "https://youtu.be/3KZ85UVbFMI",
+    "notes": "mega taiga spawn next to jungle, desert (that i couldnt find in any%) and snow. i died twice during any% and had many close deaths but nevertheless the nether wasnt as bad as i thought. fk ~1:25 and got really bad ocean+desert until later on so i had to prioritise misc which lost me a lot of time, as well as hunting creepers. skulls fort took a while to find and i made a misplay thinking that the jungle at spawn had no pandas but actually ended up having them which i did in endgame. flew around for 3 minutes trying to find ocean for dolphin during hdwgh but it was fine. missed a rain cycle during any% and only had another one but neither of which had thunder"
+  },
   "3": {},
   "4": {},
   "5": {},
@@ -16,7 +23,11 @@
   "10": {},
   "11": {
     "date": "2026-09-22",
-    "intentionalDeaths": [2],
-    "notIntentionalDeaths": [1]
+    "intentionalDeaths": [
+      2
+    ],
+    "notIntentionalDeaths": [
+      1
+    ]
   }
 }
