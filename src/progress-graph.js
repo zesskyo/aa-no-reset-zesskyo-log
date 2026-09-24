@@ -51,7 +51,7 @@ function drawProgress(run, d) {
   ];
   const deaths = d.deaths.filter(x => !x.intentional).map((x, k, all) => ({...x, text: T.deathMarker(k + 1, all.length)}));
   const thunder = d.thunder != null ? [{t: d.thunder, text: T.thunderMarker}] : [];
-  const riptide = d.riptide.map(r => ({...r, text: T.riptideMarker(r.elytra, r.uses, fmtShort(r.end - r.start))}));
+  const riptide = d.riptide.map(r => ({...r, text: T.riptideMarker(r.uses, fmtShort(r.end - r.start))}));
 
   // ---------- Hover text ----------
   const bands = d.splits.flatMap((p, i) => p.segs.map(g => ({name: p.name, start: g[0], end: g[1], ci: i}))).sort((a, b) => a.start - b.start);
@@ -65,7 +65,7 @@ function drawProgress(run, d) {
       const name = x.key === "adv" ? T.hoverAdv : x.key === "gold" ? T.hoverGold : x.key === "tnt" ? T.hoverTnt : MULTI[x.key];
       return `<div class="trow"><span class="swatch" style="background:${x.color}"></span><span class="tname">${esc(name)}</span><b class="mono">${val}</b><span class="tlab">${lab}</span></div>`;
     }).join("");
-  const riptideRow = t => { const r = riptide.find(x => t >= x.start && t <= x.end); return r ? `<div class="triptide">${ic("trident", 14)}${esc(T.hoverRiptide(r.elytra))}</div>` : ""; };
+  const riptideRow = t => { const r = riptide.find(x => t >= x.start && t <= x.end); return r ? `<div class="triptide">${ic("trident", 14)}${esc(T.hoverRiptide)}</div>` : ""; };
   const hoverText = t => { const ph = splitAt(t); return `<div class="thead"><span class="mono">${fmt(t, 0)}</span>${ph ? `<span>${esc(ph.name)}</span>` : ""}</div>` + riptideRow(t) + rows(top, t) + (res.length ? `<div class="tsep"></div>` + rows(res, t) : ""); };
 
   // ---------- Zoom ----------
