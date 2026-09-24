@@ -12,14 +12,14 @@
 function parseLog(text, filename) {
   let start = null, player = null, mc = null, dim = "o";
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
-  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
+  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
   const tot = {};
   const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0;
   const TRACK = {
     "minecraft.used:minecraft.tnt": "tnt", "minecraft.mined:minecraft.ancient_debris": "debris",
     "minecraft.picked_up:minecraft.wither_skeleton_skull": "skulls", "minecraft.killed:minecraft.wither_skeleton": "ws",
     "minecraft.picked_up:minecraft.enchanting_table": "ench",
-    "minecraft.picked_up:minecraft.trident": "trident", "minecraft.picked_up:minecraft.nautilus_shell": "nautilus", "minecraft.killed:minecraft.drowned": "drowned", "minecraft.used:minecraft.campfire": "campfire"
+    "minecraft.picked_up:minecraft.trident": "trident", "minecraft.used:minecraft.trident": "tridentUse", "minecraft.picked_up:minecraft.nautilus_shell": "nautilus", "minecraft.killed:minecraft.drowned": "drowned", "minecraft.used:minecraft.campfire": "campfire"
   };
   const TOT = {
     "minecraft.killed:minecraft.creeper": "creepers", "minecraft.custom:minecraft.damage_taken": "damage",

@@ -70,22 +70,23 @@ function renderRunsTable(pb) {
   const key = sortKeys[state.sort.key];
   const rows = RUNS.slice().sort((a, b) => (key(a) - key(b)) * state.sort.dir || runNum(a) - runNum(b));
 
-  const th = (k, label) => {
+  // note = HTML shown when hovering the heading (marked with a small corner triangle, like a note in Google Sheets)
+  const th = (k, label, note) => {
     const on = state.sort.key === k, arrow = on ? (state.sort.dir > 0 ? " ▲" : " ▼") : "";
-    return `<th scope="col" aria-sort="${on ? (state.sort.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" class="sortbtn${on ? " on" : ""}" data-sort="${k}">${esc(label)}<span aria-hidden="true">${arrow}</span></button></th>`;
+    return `<th scope="col"${note ? ` class="hasnote"` : ""} aria-sort="${on ? (state.sort.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" class="sortbtn${on ? " on" : ""}" data-sort="${k}"${note ? ` aria-describedby="note-${k}"` : ""}>${esc(label)}<span aria-hidden="true">${arrow}</span></button>${note ? `<span class="notemark" aria-hidden="true"></span><div class="notepop" role="tooltip" id="note-${k}">${note}</div>` : ""}</th>`;
   };
-  const head = th("num", T.colRun) + th("date", T.colDate) + th("hundred", T.colHundred) + th("igt", T.colTime) + SPLIT_CARDS.map(i => th("p" + i, SPLITS[i].name)).join("");
+  const head = th("num", T.colRun) + th("igt", T.colTime) + th("hundred", T.colHundred, T.hundredNote) + th("date", T.colDate) + SPLIT_CARDS.map(i => th("p" + i, SPLITS[i].name)).join("");
   const row = r => {
     const d = derive(r);
     return `<tr class="runrow" data-open="${esc(r.id)}" tabindex="0" aria-label="${esc(runTitle(r))}">
       <td style="white-space:nowrap"><span class="runno">${esc(runNum(r))}</span>${videoLink(r)}${pb === r ? `<span class="badge">${esc(T.pb)}</span>` : ""}</td>
-      <td style="white-space:nowrap">${esc(runDay(r))}${r.meta && r.meta.seed ? `<div class="note mono">${esc(r.meta.seed)}</div>` : ""}</td>
-      <td>${esc(hundred(d.category))}</td>
       <td class="mono">${fmt(r.finalIgt, 0)}</td>
+      <td>${esc(hundred(d.category))}</td>
+      <td style="white-space:nowrap">${esc(runDay(r))}${r.meta && r.meta.seed ? `<div class="note mono">${esc(r.meta.seed)}</div>` : ""}</td>
       ${SPLIT_CARDS.map(i => { const v = splitMark(d.splits[i], i); return `<td class="mono">${v != null ? fmt(v, 0) : "—"}</td>`; }).join("")}
     </tr>`;
   };
-  tbl.innerHTML = `<table style="min-width:900px"><thead><tr>${head}</tr></thead><tbody>${rows.map(row).join("")}</tbody></table><div class="footnote">${T.hundredNote}</div>`;
+  tbl.innerHTML = `<table style="min-width:900px"><thead><tr>${head}</tr></thead><tbody>${rows.map(row).join("")}</tbody></table>`;
   tbl.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.sort;
     state.sort = state.sort.key === k ? {key: k, dir: -state.sort.dir} : {key: k, dir: 1};

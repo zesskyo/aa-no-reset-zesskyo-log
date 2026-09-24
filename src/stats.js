@@ -12,6 +12,8 @@
  *   lanes        times you got tridents, skulls and nautilus shells
  *   rare         rare biome groups (see findRareBiomes)
  *   gold         gold block estimate over time
+ *   thunder      when Very Very Frightening was earned (the logs don't record weather), or null
+ *   riptide      riptide sessions: [{start, end, uses, elytra}] (see findRiptide)
  */
 function derive(run) {
   if (run._d) return run._d;
@@ -58,7 +60,22 @@ function derive(run) {
     lanes: {trident: obtains("trident"), skull: obtains("skulls"), nautilus: obtains("nautilus")},
     skullSplit: findSkullSplit(run, ws, obtains("skulls")),
     rare: findRareBiomes(run),
+    thunder: (comp.find(e => e[2] === VVF) || [null])[0],
+    riptide: findRiptide(run, comp),
   };
+}
+
+/*
+ * Riptide: bursts of trident uses. A riptide trident can be used again right away, while a thrown one
+ * has to be picked up first, so throws (A Throwaway Joke, Very Very Frightening) never make a burst.
+ * elytra = Sky's the Limit was already done, so the riptide was (most likely) used with the elytra.
+ */
+function findRiptide(run, comp) {
+  const uses = [];
+  for (const t of ((run.st || {}).tridentUse || [])) if (!uses.length || t - uses[uses.length - 1] >= RULES.riptideMinSpacing) uses.push(t);
+  const elytraAt = (comp.find(e => e[2] === "end/elytra") || [null])[0];
+  return clusters(uses, RULES.riptideGap).filter(c => c.length >= RULES.riptideMinUses)
+    .map(c => ({start: c[0], end: c[c.length - 1], uses: c.length, elytra: elytraAt != null && elytraAt <= c[0]}));
 }
 
 /*

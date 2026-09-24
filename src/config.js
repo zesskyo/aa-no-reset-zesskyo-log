@@ -122,4 +122,7 @@ const RULES = {
   skullIdleGap: 60000,              // skull split pauses after this long without a kill or skull
   pickupAfterDeath: 2 * 60000,      // pickups this soon after a death are dropped items, not new ones
   rareVisitGap: 10 * 60000,         // biome criteria closer than this count as one visit
+  riptideGap: 60000,                // trident uses closer than this count as one riptide session
+  riptideMinUses: 5,                // a session needs at least this many uses (single throws like A Throwaway Joke don't count)
+  riptideMinSpacing: 450,           // uses closer than this are counted once (a riptide can't be charged that fast)
 };

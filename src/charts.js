@@ -7,10 +7,11 @@
  *   bands    coloured split backgrounds [{name, start, end, ci (colour number)}]
  *   strip    the dimension strip under the graph
  *   deaths   death lines; markers: icons on the lines [{t, v, icon, color, text, sub}]
+ *   thunder  thunder lines [{t, text}]; riptide: highlighted riptide sessions [{start, end, text}]
  *   rug      small ticks along the bottom (TNT placed)
  *   noXAxis / noY: hide the time labels / value labels
  */
-function chartSVG({series, W = 1280, H = 460, strip = null, bands = null, deaths = null, yKey = "adv", mini = false, ref = null, xmin = 0, xmaxFix = null, ystepFix = null, rug = null, rugLabel = null, noY = false, lanes = null, markers = null, markersDim = false, fitY = false, noXAxis = false, clean = false, bandLabels = true, title = null, vlines = null, xFmt = null, padRFix = null}) {
+function chartSVG({series, W = 1280, H = 460, strip = null, bands = null, deaths = null, thunder = null, riptide = null, yKey = "adv", mini = false, ref = null, xmin = 0, xmaxFix = null, ystepFix = null, rug = null, rugLabel = null, noY = false, lanes = null, markers = null, markersDim = false, fitY = false, noXAxis = false, clean = false, bandLabels = true, title = null, vlines = null, xFmt = null, padRFix = null}) {
   const hasR = series.some(s => s.axis === "r");
   const laneH = lanes ? lanes.length * 22 + 6 : 0, hasLabels = series.some(s => s.label || s.endLabel);
   const padL = mini ? 0 : (lanes ? 78 : noY ? 12 : 48), padR = padRFix ?? (mini ? 0 : (hasLabels ? (clean ? 120 : 150) : hasR && !noY ? 56 : 16)), padT = mini ? 2 : (bands && bandLabels ? 30 : title ? 24 : 16), padB = mini ? 2 : (noXAxis ? 8 : 34), stripH = strip ? 22 : 0, rugH = rug ? 16 : 0;
@@ -50,6 +51,16 @@ function chartSVG({series, W = 1280, H = 460, strip = null, bands = null, deaths
   }
   if (ref) o += `<line class="c-ref" x1="${padL}" x2="${W - padR}" y1="${Y(ref.v)}" y2="${Y(ref.v)}"/><text class="c-reftext" x="${padL + 6}" y="${Y(ref.v) - 6}">${esc(ref.label)}</text>`;
   o += `<g clip-path="url(#${cid})">`;
+  if (riptide) riptide.forEach(r => {
+    const x0 = X(r.start), x1 = Math.max(X(r.end), x0 + 3);
+    o += `<rect class="c-riptide" x="${x0}" y="${padT}" width="${x1 - x0}" height="${ih}"/><rect class="c-riptide-top" x="${x0}" y="${padT}" width="${x1 - x0}" height="3"/>`;
+    o += icAt("trident", (x0 + x1) / 2 - 8, padT + 5, 16);
+    if (r.text) hot.push({x: (x0 + x1) / 2, y: padT + 13, text: r.text, t: r.start});
+  });
+  if (thunder) thunder.forEach(d => {
+    o += `<line class="c-thunder" x1="${X(d.t)}" x2="${X(d.t)}" y1="${padT + 8}" y2="${padT + ih}"/>` + (icAt("thunder", X(d.t) - 9, padT - 10, 18) || boltAt(X(d.t) - 9, padT - 10, 18));
+    if (d.text) hot.push({x: X(d.t), y: padT, text: d.text, t: d.t});
+  });
   if (deaths) deaths.forEach(d => {
     o += `<line class="c-death" x1="${X(d.t)}" x2="${X(d.t)}" y1="${padT + 8}" y2="${padT + ih}"/>` + (icAt("skull", X(d.t) - 9, padT - 10, 18) || `<circle cx="${X(d.t)}" cy="${padT}" r="5" class="c-deathm"/>`);
     if (d.text) hot.push({x: X(d.t), y: padT, text: d.text, t: d.t});
@@ -97,6 +108,8 @@ function chartSVG({series, W = 1280, H = 460, strip = null, bands = null, deaths
   return {svg: o + "</svg>", geom: {padL, iw, xmin, xmax, W, hot}};
 }
 let clipSeq = 0;
+// Lightning bolt drawn when there's no icons/thunder.png
+const boltAt = (x, y, size) => `<path class="c-bolt" transform="translate(${x} ${y}) scale(${size / 24})" d="M13 1 3 14h8l-2 9 11-13h-8l2-9z"/>`;
 
 /*
  * mountChart — draws a chart into `box` and makes it interactive:

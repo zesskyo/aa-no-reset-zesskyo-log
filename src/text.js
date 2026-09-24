@@ -29,7 +29,7 @@ const T = {
   colHundred: "100%",
   colTime: "Time (IGT)",
 
-  // Footnote under the runs table (HTML allowed)
+  // Note shown when hovering the "100%" heading in the runs table (HTML allowed)
   hundredNote: `<b>100%:</b> No = thunderless* (79/80 adv.) unless otherwise stated.<br>*The player is incentivised to prioritise obtaining a Trident enchanted with Channeling, and to not have slept**.<br>**If the player has slept, they must wait at least 10 minutes (min. weather cycle) until they can declare a "thunderless" run.`,
 
   // "100%" column values
@@ -85,6 +85,9 @@ const T = {
   nautilusMarker: (k, n) => `${k}/${n} Nautilus Shells`,
   godAppleMarker: "First God Apple",
   deathMarker: (k, n) => `Death ${k}/${n}`,
+  thunderMarker: "Thunder! (Very Very Frightening)",
+  riptideMarker: (elytra, uses, dur) => `${elytra ? "Riptide + Elytra" : "Riptide"} · ${uses} uses · ${dur}`,
+  hoverRiptide: elytra => elytra ? "Riptide + Elytra" : "Riptide",
   multiComplete: name => `${name} complete`,
   multiLast: crit => `Last: ${crit}`,
   debrisHover: (debris, tnt, rack) => `<b class="mono">${debris}</b> debris · <b class="mono">${tnt}</b> TNT` + (rack != null ? ` · <b class="mono">${rack}</b> netherrack` : ""),

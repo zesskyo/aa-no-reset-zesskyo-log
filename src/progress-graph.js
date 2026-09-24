@@ -1,7 +1,7 @@
 /*
  * progress-graph.js — the big "Progress over IGT" graph on the Stats page.
  * Top: advancements plus one line per multi-criteria advancement, with icons for tridents, skulls,
- * nautilus shells, the first god apple, rare biomes, and deaths.
+ * nautilus shells, the first god apple, rare biomes, deaths, thunder and riptide sessions.
  * Bottom: gold block estimate and TNT held, plus the dimension strip.
  * Both parts share zoom and the hover line. Controls: drag to zoom, + − ← → 0, F for full screen.
  */
@@ -50,6 +50,8 @@ function drawProgress(run, d) {
     ...d.multis.filter(m => m.done != null).map(m => ({t: m.done, v: m.tot, icon: MICON[m.id], color: MCOL[m.id], end: true, text: T.multiComplete(advName(m.id)), sub: T.multiLast(critName(m.last))})),
   ];
   const deaths = d.deaths.filter(x => !x.intentional).map((x, k, all) => ({...x, text: T.deathMarker(k + 1, all.length)}));
+  const thunder = d.thunder != null ? [{t: d.thunder, text: T.thunderMarker}] : [];
+  const riptide = d.riptide.map(r => ({...r, text: T.riptideMarker(r.elytra, r.uses, fmtShort(r.end - r.start))}));
 
   // ---------- Hover text ----------
   const bands = d.splits.flatMap((p, i) => p.segs.map(g => ({name: p.name, start: g[0], end: g[1], ci: i}))).sort((a, b) => a.start - b.start);
@@ -63,7 +65,8 @@ function drawProgress(run, d) {
       const name = x.key === "adv" ? T.hoverAdv : x.key === "gold" ? T.hoverGold : x.key === "tnt" ? T.hoverTnt : MULTI[x.key];
       return `<div class="trow"><span class="swatch" style="background:${x.color}"></span><span class="tname">${esc(name)}</span><b class="mono">${val}</b><span class="tlab">${lab}</span></div>`;
     }).join("");
-  const hoverText = t => { const ph = splitAt(t); return `<div class="thead"><span class="mono">${fmt(t, 0)}</span>${ph ? `<span>${esc(ph.name)}</span>` : ""}</div>` + rows(top, t) + (res.length ? `<div class="tsep"></div>` + rows(res, t) : ""); };
+  const riptideRow = t => { const r = riptide.find(x => t >= x.start && t <= x.end); return r ? `<div class="triptide">${ic("trident", 14)}${esc(T.hoverRiptide(r.elytra))}</div>` : ""; };
+  const hoverText = t => { const ph = splitAt(t); return `<div class="thead"><span class="mono">${fmt(t, 0)}</span>${ph ? `<span>${esc(ph.name)}</span>` : ""}</div>` + riptideRow(t) + rows(top, t) + (res.length ? `<div class="tsep"></div>` + rows(res, t) : ""); };
 
   // ---------- Zoom ----------
   const endT = run.finalIgt;
@@ -87,7 +90,7 @@ function drawProgress(run, d) {
     const shared = {xmin: za, xmaxFix: zb, fitY: !!state.zoom, W, onBrush: setZoom,
       onWheel: (t, f) => { const [a, b] = current(); setZoom(t - (t - a) * f, t + (b - t) * f); }, wheelActive: () => card.classList.contains("fs")};
     let cTop = null, cRes = null;
-    cTop = mountChart(box, {...shared, series: top, yKey: "adv", H: Htop, bands, deaths, markers, noXAxis: true, clean: true, onHover: t => cRes && cRes.showLine(t)}, hoverText);
+    cTop = mountChart(box, {...shared, series: top, yKey: "adv", H: Htop, bands, deaths, thunder, riptide, markers, noXAxis: true, clean: true, onHover: t => cRes && cRes.showLine(t)}, hoverText);
     if (res.length) cRes = mountChart(rbox, {...shared, series: res, yKey: "res", H: Hres, bands, bandLabels: false, padRFix: 120, strip: run.dims.length ? {segs: run.dims, end: run.finalIgt} : null, clean: true, onHover: t => cTop && cTop.showLine(t)}, hoverText);
     else rbox.innerHTML = "";
   }
