@@ -781,7 +781,7 @@ function renderRun() {
         <div><span class="label">Time (IGT)</span><span class="mono" style="font-size:34px;font-weight:600;color:var(--accent)">${fmt(run.finalIgt)}</span></div>
       </div>
     </div>
-    ${meta.notes || meta.pacelock ? `<div class="card notes">${meta.pacelock ? `<div><span class="label">Worst pacelock</span><p style="margin:6px 0 0">${esc(meta.pacelock)}</p></div>` : ""}${meta.notes ? `<div style="flex:1;min-width:0"><span class="label">Notes</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div>` : ""}</div>` : ""}
+    ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">Notes</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}
     ${d.category === "Invalid" ? `<div class="card" style="border-color:var(--bad)"><b>Invalid run.</b> <span class="muted">Missing ${d.missing.map(id => esc(advName(id))).join(", ")}. It's left out of PBs and bests.</span></div>` : ""}
     <section class="card" style="display:flex;flex-direction:column;gap:14px">
       <h2>Phases</h2>
@@ -807,21 +807,19 @@ function renderRun() {
       ${miniCard("Skulls", d.skullSplit ? d.skullSplit.dur : null, d.skullSplit ? "skullChart" : null, "No skulls in this log.")}
       ${rareCard(d.rare)}
     </div>
-    <section class="card" style="display:flex;flex-direction:column;gap:14px"><h2>Run details</h2>
+    ${editable ? `<section class="card" style="display:flex;flex-direction:column;gap:14px"><h2>Run details</h2>
         ${editable ? `<div class="form">
           <label>Run number<input type="number" min="1" id="mNum" value="${esc(runNum(run))}"></label>
           <label>Date<input type="date" id="mDate" value="${esc(isoDay(run))}"></label>
           <label>Seed<input type="text" id="mSeed" value="${esc(meta.seed || "")}" placeholder="World seed" autocomplete="off"></label>
           <label>Video link<input type="url" id="mVideo" value="${esc(meta.video || "")}" placeholder="https://youtube.com/…"></label>
-          <label>Worst pacelock<input type="text" id="mPace" list="paceList" value="${esc(meta.pacelock || "")}" placeholder="e.g. Mushroom Island"></label>
-          <datalist id="paceList">${[...new Set([...PACELOCKS, ...allRuns().map(r => r.meta && r.meta.pacelock).filter(Boolean)])].map(p => `<option value="${esc(p)}"></option>`).join("")}</datalist>
         </div>
         <label class="label" style="display:flex;flex-direction:column;gap:6px">Run notes<textarea id="mNotes" rows="3" placeholder="Anything worth remembering about this run">${esc(meta.notes || "")}</textarea></label>
         ${d.deaths.length ? `<div><span class="label">Deaths</span><p class="note" style="margin:4px 0 0">Tick deaths that were on purpose. Only the others show on the graph.</p>${d.deaths.map(x => `<div class="deathrow"><input type="checkbox" data-intent="${x.i}" id="di${x.i}" ${x.intentional ? "checked" : ""}><label for="di${x.i}"><span class="mono">${fmt(x.t, 0)}</span> in ${x.dim === "e" ? "the End" : x.dim === "n" ? "the Nether" : "the Overworld"}, intentional</label></div>`).join("")}</div>` : ""}
         <div><label class="label" for="statsFile">World stats file</label><p class="note" style="margin:4px 0 8px">Hermes doesn't log movement, so elytra distance comes from <span class="mono">saves/&lt;world&gt;/stats/&lt;uuid&gt;.json</span>.</p><input type="file" id="statsFile" accept=".json"></div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="metaSave">${run.src === "local" ? "Save details" : "Publish details"}</button><span class="status" id="metaStatus" role="status" aria-live="polite"></span></div>`
-        : `<p style="margin:0"><span class="label">Worst pacelock</span><br>${esc(meta.pacelock || "Not labelled")}</p>${meta.seed ? `<p style="margin:0"><span class="label">Seed</span><br><span class="mono">${esc(meta.seed)}</span></p>` : ""}`}
-      </section>`;
+        : ""}
+      </section>` : ""}`;
 
   // ---------- progress chart (top) + resources panel (bottom), sharing time range ----------
   const adv = seriesFor(run, "adv");
@@ -960,7 +958,7 @@ function renderRun() {
       el.querySelectorAll("[data-intent]").forEach(c => { intent[c.dataset.intent] = c.checked; });
       const vid = $("#mVideo").value.trim(), dt = $("#mDate").value;
       if (vid && !okUrl(vid)) { $("#metaStatus").className = "status err"; $("#metaStatus").textContent = "The video link needs to start with http:// or https://."; return; }
-      const nextMeta = {...meta, num: nv > 0 ? nv : undefined, pacelock: $("#mPace").value.trim() || undefined, intent, elytraCm,
+      const nextMeta = {...meta, num: nv > 0 ? nv : undefined, intent, elytraCm,
         date: /^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : undefined, seed: $("#mSeed").value.trim() || undefined, video: vid || undefined, notes: $("#mNotes").value.trim() || undefined};
       $("#metaSave").disabled = true; $("#metaStatus").className = "status"; $("#metaStatus").textContent = run.src === "local" ? "Saving…" : "Publishing…";
       const res = await saveRunMeta(run, nextMeta, "Published details for " + runTitle({...run, meta: nextMeta}) + ".");
@@ -1050,7 +1048,6 @@ function renderCompare() {
         <section class="card tablewrap"><h2 style="margin-bottom:10px">Stats</h2>
           <table style="min-width:${320 + chosen.length * 190}px"><thead><tr><th>Stat</th><th></th>${chosen.map(r => `<th>${esc(runTitle(r))}</th>`).join("")}</tr></thead><tbody>
           ${statRow("Category", r => catBadge(derive(r).category))}
-          ${statRow("Worst pacelock", r => esc(r.meta && r.meta.pacelock || "—"))}
           ${statRow(statIc("s_deaths") + "Non-intentional deaths", r => nonIntentional(r))}
           ${statRow(statIc("s_elytra") + "Elytra distance", r => r.meta && r.meta.elytraCm != null ? (r.meta.elytraCm / 100000).toFixed(1) + " km" : "—")}
           ${statRow(statIc("s_skulls") + "Skulls / wither skeletons", r => { const s = derive(r).skullRate; return s.skulls + " / " + s.kills; })}
