@@ -1,4 +1,4 @@
-# [stats website](https://zesskyo.github.io/aa-no-reset-zesskyo-log/)
+# [stats website](https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/)
 
 ### [aa no reset solo vods](https://www.youtube.com/playlist?list=PLIiQuoFM1-Xo)
 
