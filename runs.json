@@ -55,11 +55,6 @@
   },
   "11": {
     "date": "2026-09-22",
-    "intentionalDeaths": [
-      2
-    ],
-    "notIntentionalDeaths": [
-      1
-    ]
+    "seed": "-2027314435891719253"
   }
 }
